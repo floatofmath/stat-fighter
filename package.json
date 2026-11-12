@@ -1,0 +1,10 @@
+{
+  "name": "stat-fighter",
+  "version": "1.0.0",
+  "description": "Offline-capable, arcade-themed sample size and power calculator.",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  }
+}

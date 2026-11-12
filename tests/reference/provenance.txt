@@ -1,0 +1,5 @@
+R version 4.6.0 (2026-04-24)
+stats 4.6.0
+Generator: tests/reference/generate.R
+Generated: 2026-11-11
+Two-sided: both rejection tails; allocation: max(2, floor(n * ratio + 0.5))

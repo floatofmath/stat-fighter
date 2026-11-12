@@ -1,0 +1,19 @@
+.DS_Store
+/art/
+
+# Local credentials and environment settings
+.env
+.env.*
+!.env.example
+
+# Installed dependencies and debug logs
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Internal working notes (kept on disk, not published)
+/notes/
+
+_site/
+.claude/

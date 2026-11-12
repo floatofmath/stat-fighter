@@ -1,0 +1,15 @@
+R version 4.6.0 (2026-04-24)
+stats 4.6.0
+Generated: 2026-11-12
+645 cases; unattainable designs above cap excluded.
+Generator: tests/reference/generate-remaining.R
+Normal models: strict two-tail power when two-sided; null variance under alternatives. R pnorm/qnorm.
+MW: centered superiority probability, normal shift |effect| sqrt(6n), balanced groups.
+Signed-rank: centered Walsh-sum probability, normal shift |effect| sqrt(3n).
+Two proportions: Cohen h, normal shift |h| sqrt(n/2), balanced groups.
+Chi-square: R qchisq/pchisq, df, ncp=N*w^2.
+Log-rank: absolute ln HR, observed events D, normal shift effect sqrt(D*q*(1-q)); two-sided.
+Bonferroni: R qt/pt, threshold family alpha/m, pooled t, df=2n-2, ncp=abs(d)*sqrt(n/2); marginal power.
+Minimums: 20/group normal group models,20 pairs signed-rank,10 events log-rank,2 total chi-square,2/group Bonferroni.
+Checks validate implementation of approximations, not empirical design accuracy.
+Primary sources and derivations: REMAINING-REVIEW.md

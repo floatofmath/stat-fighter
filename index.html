@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#06090f">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta name="description" content="Plan sample sizes and power with arcade-style calculators for means, proportions, ranks, survival, non-inferiority and equivalence.">
+  <title>STAT FIGHTER ’89 | Sample Size Calculator</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./assets/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./journey/journey.css">
+  <script defer src="./stats.js"></script>
+  <script defer src="./journey/methods.js"></script>
+  <script defer src="./journey/content.js"></script>
+  <script defer src="./journey/journey.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-heading">Skip to content</a>
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <a href="#title" class="brand" aria-label="Stat Fighter ’89 home">
+        <span class="brand-icon" aria-hidden="true">ϟ</span>
+        <span>STAT FIGHTER <b>’89</b></span>
+      </a>
+      <ol class="stages" aria-label="Calculator progress">
+        <li data-stage="title" aria-current="step">Title</li>
+        <li data-stage="select">Select</li>
+        <li data-stage="setup">Setup</li>
+        <li data-stage="results">Results</li>
+      </ol>
+      <button type="button" class="info-button" id="about-button"><span aria-hidden="true">i</span> <span>About</span></button>
+    </div>
+  </header>
+  <main id="main" class="shell">
+    <noscript><p>This calculator needs JavaScript to calculate sample sizes on your device.</p></noscript>
+    <div id="screen"></div>
+  </main>
+  <footer class="shell footer">
+    <span>STAT FIGHTER ’89 <span class="footer-divider">/</span> SAMPLE SIZE CALCULATOR</span>
+    <span id="app-status"><i aria-hidden="true"></i> CALCULATIONS STAY ON DEVICE</span>
+  </footer>
+
+  <dialog id="about" aria-labelledby="about-title">
+    <form method="dialog"><button class="close-button" aria-label="Close about">×</button></form>
+    <h2 id="about-title">About Stat Fighter ’89</h2>
+    <p>Plan sample sizes and power for fifteen methods: t-tests, ANOVA, correlation and regression, rank tests, proportions and chi-square, log-rank event counts, Bonferroni families, and non-inferiority and equivalence (TOST) designs. Calculations run on your device.</p>
+    <p>Stat Fighter ’89 is a planning aid. Results depend entirely on the assumptions you enter and on each method’s stated model. It comes with no warranty and is not a substitute for review by a qualified statistician, particularly for clinical, regulatory or bioequivalence studies.</p>
+    <div id="install-info">
+      <h3>Install for offline play</h3>
+      <p>On iPhone or iPad, open in Safari and choose <strong>Share → Add to Home Screen</strong>. On Android, use your browser’s <strong>Install app</strong> or <strong>Add to Home screen</strong> menu.</p>
+      <button class="button secondary" type="button" id="install-button" hidden>Install app</button>
+      <p>Once the footer says <strong>Offline ready</strong>, you can calculate without a connection.</p>
+    </div>
+    <h3>Calculation limits</h3>
+    <p>Results assume complete data and a maximum of 1,000,000 participants, pairs, or observations. Two-sided t-tests use both rejection tails.</p>
+  </dialog>
+  <dialog id="journey-help" class="j-dialog" aria-labelledby="journey-help-title">
+    <form method="dialog"><button class="close-button" aria-label="Close help">×</button></form>
+    <p class="j-kicker">FIELD MANUAL / STAT FIGHTER ’89</p><h2 id="journey-help-title"></h2><p class="j-dialog-content"></p>
+    <form method="dialog"><button class="j-button">BACK TO THE GAME ↵</button></form>
+  </dialog>
+  <dialog id="journey-options" class="j-dialog" aria-labelledby="journey-options-title">
+    <form method="dialog"><button class="close-button" aria-label="Close options">×</button></form>
+    <p class="j-kicker">CABINET SETTINGS</p><h2 id="journey-options-title">Options</h2>
+    <label><input type="checkbox"> Subtle animation effects</label>
+    <p class="j-small">Your system’s reduced-motion setting is always respected. Sound will join the arcade in a later chapter.</p>
+    <form method="dialog"><button class="j-button">BACK TO THE GAME ↵</button></form>
+  </dialog>
+</body>
+</html>

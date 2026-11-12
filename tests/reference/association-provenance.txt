@@ -1,0 +1,10 @@
+R version 4.6.0 (2026-04-24)
+stats 4.6.0
+Generated: 2026-11-12
+Generator: tests/reference/generate-association.R
+75 correlation cases; 180 regression cases.
+Correlation: null rho=0; central t critical with n-2 df; alternative atanh(abs(rho))+abs(rho)/(2(n-1)); normal Fisher-z approximation with scale sqrt(n-3); both tails if two-sided. Minimum n=4.
+Regression: overall fixed-model F, numerator df=p, residual df=n-p-1, noncentrality=n*f2, one intercept. Minimum n=p+2.
+All searches use whole N and independently evaluate predecessor power.
+Primary conventions: https://search.r-project.org/CRAN/refmans/pwr/html/pwr.r.test.html
+https://search.r-project.org/CRAN/refmans/pwr/help/pwr.f2.test.html

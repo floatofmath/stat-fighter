@@ -1,0 +1,15 @@
+R version 4.6.0 (2026-04-24)
+stats 4.6.0
+Generated: 2026-11-12
+422 cases; designs exceeding total cap excluded.
+Generator tests/reference/generate-equivalence.R; no JavaScript used.
+TOST: integrate normal interval conditional on pooled variance against chi-square density, truncate at interval closure and chi-square tail probabilities1e-14 each; rel.tol1e-11 abs.tol1e-13.
+NI: R qt/pt noncentral-t; direction explicit; positive allowed loss.
+Balanced independent parallel groups; df2n-2; total2n; minimum2/group; cap1milliontotal.
+One-sided alpha for NI; same alpha for each TOST component (not alpha/2); TOST CI1-2alpha.
+BE logsigma=sqrt(log1p(CV^2)); total parallel CV; geometric T/R ratios.
+PowerTOST published additive parallel example: theta0=-.05,CV=.2,theta1=-.2,theta2=.2,design=parallel; N48,power.815435.
+https://search.r-project.org/CRAN/refmans/PowerTOST/html/sampleN.TOST.html
+https://search.r-project.org/CRAN/refmans/PowerTOST/html/power.TOST.html
+https://search.r-project.org/CRAN/refmans/PowerTOST/html/power.noninf.html
+https://search.r-project.org/CRAN/refmans/PowerTOST/html/CV2se.html

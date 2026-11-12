@@ -1,0 +1,88 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Stat Fighter browser QA</title>
+<style>body{background:#080c13;color:#ddd;font:14px/1.6 monospace;margin:20px}button,a{color:#edc871;background:#14212c;padding:12px;border:1px solid #48616e}#log{white-space:pre-wrap}.pass{color:#96d6b0}.fail{color:#ff9cac}iframe{display:block;border:1px solid #48616e;margin-top:20px;background:#080c13}label{display:inline-block;margin:10px}</style>
+<h1>Stat Fighter browser QA</h1><p>Runs against the real app in a same-origin frame. Uses a dedicated draft during checks and restores the previous saved draft afterward. Layout checks cover 320, 390, 768 and 1280 CSS pixels. Native keyboard and offline relaunch checks are separate.</p><button id="run">Run checks</button> <a href="../index.html">Open journey</a><p id="release"></p><p id="summary" role="status">Ready to run.</p><pre id="log" aria-live="polite">Ready.</pre><iframe id="app" title="Actual Stat Fighter app" width="390" height="844"></iframe>
+<script>
+const frame=document.querySelector('#app'),log=document.querySelector('#log');
+const delay=ms=>new Promise(r=>setTimeout(r,ms));
+const wait=async fn=>{for(let i=0;i<100;i++){if(fn())return;await delay(30)}throw Error('Timed out waiting for app')};
+const load=async hash=>{const loaded=new Promise(r=>frame.onload=r);frame.src='../index.html?qa='+Date.now()+hash;await loaded;await frame.contentDocument.fonts.ready;await wait(()=>frame.contentDocument.querySelector('#main-heading'));await delay(200)};
+let count=0; const check=(ok,label)=>{if(!ok)throw Error(label);log.textContent+='PASS '+label+'\n';count++};
+const doc=()=>frame.contentDocument,win=()=>frame.contentWindow,$=s=>doc().querySelector(s),all=s=>[...doc().querySelectorAll(s)];
+const go=async hash=>{win().location.hash=hash;await delay(100)};
+const edit=(id,value)=>{const el=$('#j-'+id);el.value=value;el.dispatchEvent(new (win().Event)('input',{bubbles:true}))};
+const submit=()=>$('#j-arena-form').requestSubmit();
+const mode=value=>$('input[name="mode"][value="'+value+'"]').click();
+document.querySelector('#run').onclick=async()=>{
+ document.querySelector('#run').disabled=true;log.textContent='';log.className='';count=0;
+ const key='stat-fighter:journey:v2',saved=localStorage.getItem(key),legacyKey='stat-fighter:journey:v1',legacySaved=localStorage.getItem(legacyKey);
+ try{
+ localStorage.removeItem(key);localStorage.removeItem(legacyKey);await load('#title');
+ check(!!$('.j-menu'),'title renders');
+ $('.j-menu a').click();await delay(100);check(!!$('.j-map'),'Start opens world');
+ const pin=$('.j-pin');pin.focus();pin.dispatchEvent(new (win().KeyboardEvent)('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}));check(doc().activeElement===all('.j-pin')[1],'arrow navigation moves map focus');
+ doc().activeElement.click();check($('.j-region-detail').textContent.includes('DISTRICT AVAILABLE'),'Association Heights is playable');$('.j-pin[data-region="ranks"]').click();check($('.j-region-detail').textContent.includes('DISTRICT AVAILABLE'),'Ranklands is playable');
+ $('.j-pin[data-region="means"]').click();$('.j-region-detail a').click();await delay(100);check(!!$('.j-roster-strip'),'continent renders');
+ $('.j-location a').click();await delay(100);check(!!$('.j-speech'),'Maverick profile renders');
+ $('.j-profile-copy>.j-button').click();await delay(100);submit();check($('.j-score strong').textContent==='128','default arena returns 64 + 64');
+ edit('effect','0.6');check(all('[data-copy]').every(b=>b.disabled)&&!!$('.j-stale'),'editing disables stale copy and share');
+ const help=$('[data-help="effect"]');help.click();check($('#journey-help').open&&$('#j-effect').value==='0.6','help retains draft');$('#journey-help').close();await delay(30);check(doc().activeElement===help,'help restores trigger focus');
+ mode('means');check($('#j-mean1').value==='105','means mode has its own defaults');edit('mean1','106');mode('effect');check($('#j-effect').value==='0.6','mode switch preserves effect draft');mode('means');check($('#j-mean1').value==='106','mode switch preserves means draft');
+ edit('sd','0');submit();check(!$('#j-error').hidden&&$('#j-sd').getAttribute('aria-invalid')==='true'&&doc().activeElement===$('#j-sd'),'invalid SD explains error and focuses field');
+ edit('sd','10');submit();const meansScore=$('.j-score strong').textContent;mode('effect');submit();check($('.j-score strong').textContent===meansScore,'equivalent modes agree through UI');
+ const url=win().location.hash;await go('#profile');win().history.back();await delay(100);check($('#j-effect')?.value==='0.6','browser Back retains arena inputs');win().history.forward();await delay(100);check(!!$('.j-speech'),'browser Forward restores profile');await go('#arena');check($('#j-effect').value==='0.6','navigation retains draft');await load('#arena');check($('#j-effect').value==='0.6','saved draft survives full reload without URL inputs');
+ await load(url);check($('.j-score strong').textContent===meansScore,'shared URL recalculates identical result');
+ await load('#setup?test=two-sample&effect=0.5&alpha=0.05&power=0.8&ratio=1&alternative=two-sided');check(!!$('#j-arena-form'),'legacy setup migrates to arena');
+ await load('#results?test=two-sample&effect=0.5&alpha=0.05&power=0.8&ratio=1&alternative=two-sided');check($('.j-score strong').textContent==='128','legacy result migrates and calculates');
+ await load('#arena?v=99&test=two-sample&run=1');check(!$('#j-error').hidden&&!$('.j-score'),'unsupported URL cannot calculate');
+ await go('#profile');await go('#arena');check($('#j-error').hidden,'leaving invalid link and opening arena clears route error');
+ await load('#arena?test=two-sample');check($('#j-effect').value==='0.6','opening shared links does not overwrite the saved draft');
+ await load('#title');$('[data-options]').click();const toggle=$('#journey-options input');toggle.checked=false;toggle.dispatchEvent(new (win().Event)('change',{bubbles:true}));$('#journey-options').close();check(doc().body.classList.contains('no-effects'),'effects can be disabled');
+ await load('#title');check(doc().body.classList.contains('no-effects'),'effects setting survives reload');
+ await go('#world');$('.j-pin[data-region="association"]').click();$('.j-region-detail a').click();await delay(100);check(all('.j-roster-slot').length===2&&$('#main-heading').textContent.includes('Association Heights'),'world enters the new continent with two fighters');$('.j-location a').click();await delay(100);check($('.j-profile-copy h1').textContent==='Volt','new continent opens Volt profile');$('.j-profile-copy>.j-button').click();await delay(100);check(!!$('.j-method-notice')&&$('.j-method-notice').textContent.includes('Approximate'),'Volt arena explains approximation before calculation');submit();check($('.j-score strong').textContent==='85','Volt world-to-arena journey calculates');
+ await go('#profile?test=regression');check(all('.j-roster-slot').length===2,'profile roster stays within Association Heights');$('.j-profile-copy>.j-button').click();await delay(100);check(!$('input[name="alternative"]'),'overall regression has no directional switch');submit();check($('.j-score strong').textContent==='77','Vector profile-to-arena journey calculates');
+ const heroes=[['two-sample',128,'means'],['paired',34,'differences'],['one-sample',34,'means'],['anova',159,'means'],['correlation',85,'covariance'],['regression',77,'r-squared'],['mann-whitney',66,'probability'],['signed-rank',66,'normal-shift'],['proportions',776,'proportions'],['chi-square',197,'table'],['log-rank',247,'hazard-ratio'],['bonferroni',192,'means'],['non-inferiority',128,'means'],['tost',140,'means'],['tost-lognormal',76,'log']];
+ for(const [id,total,otherMode] of heroes){
+ await load('#arena?v=1&test='+id);submit();check($('.j-score strong').textContent===String(total),id+' default result and units');
+ const label=$('.j-score').textContent;check(label.includes(win().StatFighter.methods[id].totalLabel),id+' displays correct unit label');
+ mode(otherMode);submit();check($('.j-score strong').textContent===String(total),id+' alternate mode agrees');
+ const method=win().StatFighter.methods[id],field=method.inputFields({...method.defaults,mode:otherMode}).find(key=>key!=='sd');
+ const before=$('#j-'+field).value;const help=$('[data-help="'+field+'"]');help.click();check($('#journey-help').open,id+' contextual input help');$('#journey-help').close();await delay(20);check($('#j-'+field).value===before,id+' help preserves value');
+ const resultURL=win().location.hash;await load(resultURL);check($('.j-score strong').textContent===String(total),id+' alternate-input URL restores result');
+ await load('#results?test='+id);check($('.j-score strong').textContent===String(total),id+' legacy result migrates');
+ await go('#select');check(all('.j-quick-card').length===15,'Quick Select exposes fifteen shared fighters');
+ $('.j-quick-card a[href="#profile?test='+id+'"]').click();await delay(100);check($('.j-profile-copy h1').textContent===win().StatFighter.content.fighters[id].name,id+' profile reachable from Quick Select');
+ }
+ for(const [region,count,first] of [['ranks',2,'Rook'],['frequency',2,'Pip'],['survival',1,'Harbor'],['multiplicity',1,'Aegis']]){
+ await go('#world');$('.j-pin[data-region="'+region+'"]').click();check($('.j-region-detail').textContent.includes('DISTRICT AVAILABLE'),region+' world signal is open');$('.j-region-detail a').click();await delay(100);check(all('.j-roster-slot').length===count,region+' regional roster');$('.j-location a').click();await delay(100);check($('.j-profile-copy h1').textContent===first,region+' first profile');$('.j-profile-copy>.j-button').click();await delay(100);submit();check(!!$('.j-score'),region+' world to calculated arena');
+ }
+ await load('#arena?v=1&test=log-rank&mode=hazard-ratio&run=1');check($('.j-score').textContent.includes('REQUIRED EVENT COUNT')&&!$('.j-score').textContent.includes('PARTICIPANTS'),'Harbor distinguishes events from enrollment');check(!all('input[name="alternative"]').length,'Harbor is explicitly two-sided');
+ await load('#arena?v=1&test=bonferroni&comparisons=100&alpha=.0001&run=1');check($('.j-receipt').textContent.includes('0.000001'),'Bonferroni receipt records tiny adjusted alpha');check($('.j-power-label').textContent.includes('MARGINAL'),'Bonferroni labels marginal power');
+ await load('#arena?v=1&test=chi-square');mode('table');edit('cell11','.4');submit();check(!$('#j-error').hidden&&doc().activeElement===$('#j-cell11'),'invalid probability sum focuses first table cell');
+ await load('#arena?v=1&test=mann-whitney');mode('probability');edit('probability','.3');submit();check(!!$('.j-score'),'two-sided rank permits negative centered effect');$('input[name="alternative"][value="greater"]').click();submit();check(!$('#j-error').hidden,'rank rejects mismatched directional effect');
+ await load('#arena?v=1&test=non-inferiority');submit();check($('.j-score strong').textContent==='128','NI accepts expected difference zero');edit('effect','-.1');submit();const niHigh=$('.j-score strong').textContent;edit('benefit','lower');edit('effect','.1');submit();check($('.j-score strong').textContent===niHigh,'NI beneficial directions reflect correctly');check($('.j-derived').textContent.includes('≥'),'NI prints lower-is-better signed null boundary');edit('effect','.5');submit();check(!$('#j-error').hidden&&doc().activeElement===$('#j-effect'),'NI rejects expectation at its null boundary');
+ await load('#arena?v=1&test=tost&run=1');check($('.j-derived').textContent.includes('90.00%'),'TOST displays confidence level for alpha .05');check(!$('input[name="alternative"]'),'TOST has no misleading superiority tail switch');edit('effect','.5');submit();check(!$('#j-error').hidden,'TOST rejects expected difference on bound');
+ await load('#arena?v=1&test=tost-lognormal&run=1');check($('.j-score strong').textContent==='76','parallel bioequivalence default returns 38 per group');check($('.j-method-notice').textContent.includes('between-subject'),'bioequivalence explicitly requests parallel total CV');check($('.j-receipt').textContent.includes('Common natural-log SD'),'bioequivalence receipt records scale conversion');edit('cv','30');submit();check(!$('#j-error').hidden&&doc().activeElement===$('#j-cv'),'CV percentage entered as decimal error is actionable');edit('cv','.3');edit('gmr','.8');submit();check(!$('#j-error').hidden&&doc().activeElement===$('#j-gmr'),'bioequivalence rejects expected ratio on a bound');
+ await load('#arena?v=1&test=anova');mode('means');edit('groupMean3','108');edit('groups','2');$('#j-groups').dispatchEvent(new (win().Event)('change',{bubbles:true}));check(!$('#j-groupMean3'),'Nova removes inactive group control');edit('groups','3');$('#j-groups').dispatchEvent(new (win().Event)('change',{bubbles:true}));check($('#j-groupMean3').value==='108','Nova restores hidden group draft');
+ edit('groups','20');$('#j-groups').dispatchEvent(new (win().Event)('change',{bubbles:true}));check(all('[name^="groupMean"]').length===20,'Nova supports 20 editable means');submit();check(!!$('.j-score'),'Nova calculates 20 groups');
+ edit('groups','2.5');$('#j-groups').dispatchEvent(new (win().Event)('change',{bubbles:true}));submit();check(!$('#j-error').hidden&&doc().activeElement===$('#j-groups'),'Nova fractional group error focuses count');
+ await load('#arena?v=1&test=two-sample');mode('effect');edit('effect','0.7');await go('#arena?v=1&test=paired');check($('#j-effect').value==='0.5','fighter drafts do not leak');await go('#arena?test=two-sample');check($('#j-effect').value==='0.7','returning restores original fighter draft');
+ await load('#arena?test=unavailable&run=1');check(all('.j-quick-card').length===15&&!$('.j-score'),'unknown method leads to supported selection');
+ const routes=['title','world','continent?region=means','continent?region=association','continent?region=ranks','continent?region=frequency','continent?region=survival','continent?region=multiplicity','select',...heroes.flatMap(([id,,otherMode])=>['profile?test='+id,'arena?v=1&test='+id+'&mode=effect&run=1','arena?v=1&test='+id+'&mode='+otherMode+'&run=1'])];
+ for(const width of [320,390,768,1280]){
+ frame.width=width;
+ for(const route of routes){
+ await go('#'+route);await doc().fonts.ready;
+ check(doc().documentElement.scrollWidth<=width+1,width+'px '+route+' has no page overflow');
+ const images=all('#screen img');await Promise.all(images.map(img=>{img.loading='eager';return img.decode().catch(()=>{})}));check(images.every(img=>img.naturalWidth>0),width+'px '+route+' art loaded');
+ const bad=all('#screen a,#screen button,#screen input[type=number],#screen select,#screen label span').filter(el=>{const r=el.getBoundingClientRect();return r.width>0&&r.height>0&&(r.right>width+1||r.left < -1)});check(!bad.length,width+'px '+route+' controls stay in viewport'+(bad.length?': '+bad.map(e=>e.textContent).join(','):''));
+ }
+ }
+ frame.width=390;await go('#arena?v=1&test=two-sample&mode=means&run=1');
+ const registration=await win().navigator.serviceWorker.ready;
+ check(!!registration.active,'service worker active');
+ const names=await caches.keys();const current=names.find(n=>n.startsWith('stat-fighter-'+registration.scope+'-'));check(!!current,'scope-specific offline cache exists');
+ const cache=await caches.open(current);const entries=await cache.keys();check(entries.length>=45,'complete offline app and journey art cached ('+entries.length+' files)');
+ log.textContent+='DONE '+count+' checks passed.\n';log.className='pass';document.querySelector('#summary').textContent='DONE: '+count+' checks passed. Active cache: '+current+'. Waiting update: '+Boolean(registration.waiting);
+ }catch(e){log.textContent+='FAIL '+e.message+'\n';log.className='fail';document.querySelector('#summary').textContent='FAIL after '+count+' checks: '+e.message+'; last pass: '+log.textContent.trim().split('\n').slice(-3).join(' | ')}finally{const registration=await navigator.serviceWorker.getRegistration('../');if(registration){await registration.update().catch(()=>{});document.querySelector('#release').textContent='Caches: '+(await caches.keys()).join(', ')+'; waiting: '+Boolean(registration.waiting)+'; installing: '+Boolean(registration.installing);}if(saved===null)localStorage.removeItem(key);else localStorage.setItem(key,saved);if(legacySaved===null)localStorage.removeItem(legacyKey);else localStorage.setItem(legacyKey,legacySaved);document.querySelector('#run').disabled=false}
+};
+</script></html>

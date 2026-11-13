@@ -1,4 +1,4 @@
-const version = 'v17';
+const version = 'v18';
 const cachePrefix = `stat-fighter-${self.registration.scope}-`;
 const cacheName = `${cachePrefix}${version}`;
 // Pages request the half-size copies in assets/web/. Only the full-size originals in assets/ are

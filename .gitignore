@@ -14,6 +14,8 @@ yarn-error.log*
 
 # Internal working notes (kept on disk, not published)
 /notes/
+/Stat Fighter - Notes & Issues.md
+/*Notes*.md
 
 _site/
 .claude/

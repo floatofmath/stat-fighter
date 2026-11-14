@@ -73,7 +73,7 @@ test('Earth and all playable districts have complete method/content/art contract
   for(const key of ['accuracy','robustness','efficiency','flexibility']){const [score,reason]=f.stats[key];assert.ok(Number.isInteger(score)&&score>=1&&score<=10&&reason,`${id} ${key}`);}
  }
  assert.equal(regions.map(r=>r.id).join(),'means,frequency,survival,boundary');
- assert.equal(regions.map(r=>r.roster.length).join(),'7,5,1,5');
+ assert.equal(regions.map(r=>r.roster.length).join(),'7,5,3,7');
  for(const r of regions)for(const id of r.roster)assert.equal(fighters[id].region,r.id,`${id} region`);
  assert.equal(JSON.stringify(sandbox.globalThis.StatFighter.content.regionAliases),JSON.stringify({association:'means',ranks:'frequency',multiplicity:'boundary'}));
  // 44px map controls must remain separate at the narrowest supported map width.

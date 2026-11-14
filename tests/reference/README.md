@@ -44,3 +44,12 @@ Correlation follows the explicitly approximate bias-corrected Fisher-z / central
 - **Anchor** (ANCOVA): noncentral t with df = N − 2 − q and the residual SD reduced by √(1 − ρ²). This is the usual approximation; it ignores the variance of the estimated covariate slope. Three R simulations recorded in the provenance file put it about half a percentage point of power above the simulated `lm` power at 20–50 per group.
 - **Welch** (Maverick's unequal-variance mode): noncentral t with Satterthwaite df from the planning SDs. With equal SDs and groups it reproduces the pooled result exactly.
 - **Parry** (Farrington–Manning): R finds the restricted maximum-likelihood proportions with `uniroot` on the score equation; JavaScript bisects the same equation. Neither uses the published closed-form cubic. gsDesign was not installed, so there is no package cross-check yet.
+
+
+## Last wave: Jab, Scatter, Bell and Towel
+
+`Rscript tests/reference/generate-sequential.R` regenerates `vaccine.csv` (43 cases), `negative-binomial.csv` (146), `group-sequential.csv` (51) and `sequential-provenance.txt`. It uses base R, `mvtnorm` (already installed) and `MASS` (shipped with R); nothing was installed. Node checks them in `tests/sequential.test.mjs`.
+
+- **Jab** (vaccine efficacy): exact `qbinom`/`pbinom`. Because exact power is saw-toothed in the number of cases, the answer is the smallest total after which power stays at or above target for the next 100 totals; the plain first crossing is recorded and shown too. Compared exactly (counts) and to 2e-9 (powers).
+- **Scatter** (negative binomial): Wald test on the log rate ratio with the variance at the planned rates (Zhu and Lakatos 2014, method 1). Two `glm.nb` simulations in the provenance file agree within about 0.6 percentage points of power. MKpower was not installed for a package cross-check.
+- **Bell and Towel** (group sequential): R computes the crossing probabilities with `mvtnorm::pmvnorm` (Miwa algorithm); JavaScript uses recursive numerical integration on a grid (Jennison and Turnbull, chapter 19), so the two are independent methods. Bounds, inflation factors, stopping probabilities and expected sizes agree within 1e-6, and maximum sizes exactly. The O'Brien–Fleming-type bounds for three equal looks (3.7103, 2.5114, 1.9930) match gsDesign's published values. gsDesign and rpact were not installed.

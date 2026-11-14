@@ -5,8 +5,8 @@
   const regions = [
     { id: 'means', name: 'Mean Streets', tag: 'Means and linear models', x: 24, y: 29, number: '01', roster: ['two-sample', 'paired', 'one-sample', 'anova', 'ancova', 'correlation', 'regression'], tagline: 'The average is only the beginning.', introduction: 'Independent groups, paired measurements, a single mean, a crowd of groups, a baseline adjustment, a correlation or a whole regression model: the linear model on a continuous outcome, in all its outfits.', quote: 'Choose your question. Then choose your fighter.', description: 'Where every average has an attitude. t-tests, ANOVA, ANCOVA, correlation and regression: one family, many fighting styles.' },
     { id: 'frequency', name: 'Frequency Frontier', tag: 'Proportions, counts and ranks', x: 53, y: 58, number: '02', roster: ['proportions', 'chi-square', 'ni-proportions', 'mann-whitney', 'signed-rank'], tagline: 'Every observation counts.', introduction: 'Outcomes that are not analysed as means: binary events, categorical tables and rank orderings. Check rare outcomes, sparse cells and ties before committing to a study.', quote: 'A count is only as good as its denominator.', description: 'Binary, categorical and rank-based outcomes. Proportions, chi-square tables, a margin on a risk difference, and the rank fighters.' },
-    { id: 'survival', name: 'Survival Coast', tag: 'Events over time', x: 85, y: 73, number: '03', roster: ['log-rank'], tagline: 'Time is part of the question.', introduction: 'Studies that count events as they accrue. Plan the event count for a proportional-hazards comparison, then convert it to enrolment with an explicit accrual and follow-up model.', quote: 'Events first. Then the people who carry them.', description: 'Time-to-event planning: event counts, and the enrolment needed to observe them.' },
-    { id: 'boundary', name: 'Boundary Citadel', tag: 'Margins, error budgets and interim looks', x: 74, y: 31, number: '04', roster: ['bonferroni', 'non-inferiority', 'tost', 'tost-lognormal', 'tost-crossover'], tagline: 'Every line was drawn before the first bell.', introduction: 'Every fighter here defends a line fixed before the trial starts: a non-inferiority margin, a pair of equivalence limits, or a shared alpha budget. Move the line afterwards and the fight is void.', quote: 'Draw the line first. Then defend it.', description: 'Non-inferiority, equivalence and bioequivalence, and the family error budget.' },
+    { id: 'survival', name: 'Survival Coast', tag: 'Events over time', x: 85, y: 73, number: '03', roster: ['log-rank', 'vaccine-efficacy', 'negative-binomial'], tagline: 'Time is part of the question.', introduction: 'Studies that count events as they accrue: time to a first event, cases in a vaccine trial, and recurrent events per participant. Plan the event count first, then convert it to enrolment.', quote: 'Events first. Then the people who carry them.', description: 'Events over time: log-rank event counts, case-driven vaccine efficacy, and negative binomial rates for recurrent events.' },
+    { id: 'boundary', name: 'Boundary Citadel', tag: 'Margins, error budgets and interim looks', x: 74, y: 31, number: '04', roster: ['bonferroni', 'non-inferiority', 'tost', 'tost-lognormal', 'tost-crossover', 'gsd-efficacy', 'gsd-futility'], tagline: 'Every line was drawn before the first bell.', introduction: 'Every fighter here defends a line fixed before the trial starts: a non-inferiority margin, a pair of equivalence limits, a shared alpha budget, or the stopping boundaries of interim looks. Move the line afterwards and the fight is void.', quote: 'Draw the line first. Then defend it.', description: 'Non-inferiority, equivalence and bioequivalence, the family error budget, and group sequential designs with interim looks.' },
   ];
   const regionAliases = { association: 'means', ranks: 'frequency', multiplicity: 'boundary' };
   const fighters = {
@@ -115,6 +115,50 @@
     },
   });
 
+  // Last wave: events over time and interim looks.
+  Object.assign(fighters, {
+    'vaccine-efficacy': {
+      name: 'Jab', region: 'survival', number: '19', image: './assets/web/jab-arcade-v1.webp', stageImage: './assets/web/jab-stage-v1.webp', stageFraming: 'full',
+      alt: 'Jab, a young boxer in an open white-and-scarlet robe, throwing a straight left with taped hands and a cocky grin.', stageAlt: 'An open-air boxing ring in a field camp at night, with lit canvas tents and a string of bulbs.',
+      title: 'The first line of defence', move: 'Case Count Combo', quote: 'Count the cases. I’ll count the knockdowns.',
+      bio: 'Jab fights in the Field Ring, where nobody keeps score in rounds: the bout ends when enough cases have landed. He knows the only number that matters is how many of them came from his corner, and he trains every night to keep that number embarrassingly low.',
+      joke: '“I don’t dodge the virus. I make it miss the vaccinated.”', stage: 'Field Ring', test: 'Vaccine efficacy · exact',
+      choose: 'You’re planning a case-driven vaccine trial and want the number of cases, and then participants, to show efficacy above a bound such as 30%.',
+      avoid: 'Time-to-event comparisons need Harbor. Recurrent infections per person need Scatter.',
+      waiting: 'Gloves taped. Waiting for the cases.', resultTitle: 'Protection proven.', scoreTitle: 'CASE PLAN', trait: 'HAND SPEED', weakness: 'LOW ATTACK RATES',
+    },
+    'negative-binomial': {
+      name: 'Scatter', region: 'survival', number: '20', image: './assets/web/scatter-arcade-v1.webp', stageImage: './assets/web/scatter-stage-v1.webp', stageFraming: 'full',
+      alt: 'Scatter, a lanky man with a mop of curls and a mustard coat covered in uneven dots, grinning in a loose off-balance stance.', stageAlt: 'A night courtyard where paper lanterns hang in uneven clusters, crowded in places and sparse in others.',
+      title: 'The overdispersed', move: 'Clump Flurry', quote: 'Some people get one flare-up. Some get twelve.',
+      bio: 'Scatter strings the lanterns in Lantern Yard and never hangs two the same distance apart. He fights the way exacerbations arrive: nothing for months, then four in a week. Poisson models try to predict him and lose.',
+      joke: '“My variance exceeds my mean. My doctor calls it a lifestyle.”', stage: 'Lantern Yard', test: 'Negative binomial rate ratio · approximate',
+      choose: 'You’re comparing event rates per participant (exacerbations, relapses, infections) where some participants have many more events than others.',
+      avoid: 'Time to the first event needs Harbor. A single yes/no outcome per person needs Pip or Parry.',
+      waiting: 'The lanterns are lit. Count every flare-up.', resultTitle: 'The rate is tamed.', scoreTitle: 'RATE PLAN', trait: 'UNPREDICTABILITY', weakness: 'SHORT FOLLOW-UP',
+    },
+    'gsd-efficacy': {
+      name: 'Bell', region: 'boundary', number: '21', image: './assets/web/bell-arcade-v1.webp', stageImage: './assets/web/bell-stage-v1.webp', stageFraming: 'full',
+      alt: 'Bell, a woman with a black bob and a white streak, in a gold jacket over a referee-striped collar, raising an open hand to stop the fight.', stageAlt: 'A mountain-top ring before dawn, with three lamp posts climbing the path and a bronze bell in a small pavilion.',
+      title: 'The early finish', move: 'Final Bell', quote: 'I don’t need fifteen rounds to see a knockout.',
+      bio: 'Bell referees the Summit Ring, where three lamps climb the path to the platform. At each lamp she checks the fight, and if one side is clearly beaten she rings the bell and sends everyone home. She spent her alpha budget before the first round and never overspends.',
+      joke: '“Stopping early isn’t quitting. It’s winning with a smaller crowd.”', stage: 'Summit Ring', test: 'Group sequential · efficacy',
+      choose: 'You want one or two interim analyses that can stop the trial early for overwhelming efficacy while keeping the overall one-sided alpha.',
+      avoid: 'If you also want to stop for futility, Towel throws in the towel. Several endpoints sharing alpha need Aegis.',
+      waiting: 'Three lamps on the path. Ready at each one.', resultTitle: 'Ding ding. It’s over.', scoreTitle: 'LOOK PLAN', trait: 'TIMING', weakness: 'UNPLANNED LOOKS',
+    },
+    'gsd-futility': {
+      name: 'Towel', region: 'boundary', number: '22', image: './assets/web/towel-arcade-v1.webp', stageImage: './assets/web/towel-stage-v1.webp', stageFraming: 'full',
+      alt: 'Towel, a stout older corner man with a grey moustache and flat cap, gripping the towel on his shoulder and holding one hand out flat.', stageAlt: 'An old boxing gym with a ring corner, stool and bucket on one side and three blank easel boards on the other.',
+      title: 'The corner man', move: 'Throw It In', quote: 'Some fights you win early. Some you stop early.',
+      bio: 'Towel has worked the corner of the Corner Gym for fifty years. Between rounds he reads the cards on his three easels and decides: keep going, celebrate, or throw in the towel before anyone gets hurt. His futility calls are advice, not law, so the referee’s alpha never changes.',
+      joke: '“Non-binding means you can ignore me. Nobody ever does twice.”', stage: 'Corner Gym', test: 'Group sequential · efficacy + futility',
+      choose: 'You want interim analyses that can stop early for efficacy or for futility, with non-binding futility bounds as regulators expect.',
+      avoid: 'Efficacy-only stopping is Bell’s job. A single analysis needs the fighter for your endpoint.',
+      waiting: 'Towel on the shoulder. Watching every round.', resultTitle: 'Right call, champ.', scoreTitle: 'CORNER PLAN', trait: 'JUDGEMENT', weakness: 'SUNK COSTS',
+    },
+  });
+
   // Challenge-card data. stats: hand scores (1–10) with the reason shown on focus.
   // CALC ACCURACY: whether the app computes power and sample size exactly under the method's model,
   // or by a large-sample approximation. It says nothing about whether the test itself is exact. ROBUSTNESS: how few distributional assumptions.
@@ -139,6 +183,10 @@
     tost: card('TOST EQUIVALENCE', 'PROVE EQUIVALENCE', '#7ecfa9', [[10, 'Exact joint TOST power.'], [5, 'Normal outcomes and a common SD.'], [7, 'Both limits must be cleared at once.'], [6, 'Asymmetric limits; two entry modes.']]),
     'tost-lognormal': card('BIOEQUIVALENCE · PARALLEL', 'MATCH THE RATIO', '#7ccfd1', [[10, 'Exact joint TOST power on the log scale.'], [5, 'Log-normal outcomes, common total CV.'], [5, 'Parallel groups carry between-subject variance.'], [6, 'Any ratio limits; CV or log-SD entry.']]),
     'tost-crossover': card('CROSSOVER BIOEQUIVALENCE', 'CROSS OVER', '#e9a93f', [[10, 'Exact joint TOST power; matches PowerTOST.'], [5, 'Log-normal outcomes, no carry-over.'], [10, 'Every subject is their own control.'], [5, 'Balanced 2×2 only; any ratio limits.']]),
+    'vaccine-efficacy': card('VACCINE EFFICACY', 'PROVE PROTECTION', '#e0574f', [[10, 'Exact binomial power on the case split.'], [8, 'Conditional on cases: no model for when they occur.'], [7, 'Rare cases mean long, large trials.'], [7, 'Any efficacy bound, allocation, case-to-participant step.']]),
+    'negative-binomial': card('NEGATIVE BINOMIAL', 'COUNT EVERY FLARE-UP', '#d9b23c', [[6, 'Normal approximation on the log rate ratio.'], [6, 'Allows over-dispersion; assumes a common dispersion.'], [8, 'Uses every event, not just the first.'], [8, 'Superiority or non-inferiority, follow-up, allocation.']]),
+    'gsd-efficacy': card('GROUP SEQUENTIAL', 'STOP EARLY', '#f0c35a', [[9, 'Numerical integration under the normal approximation.'], [6, 'Normal test statistic with information ∝ size.'], [9, 'Small inflation; often stops early.'], [9, 'Two or three looks, four spending families, three inputs.']]),
+    'gsd-futility': card('SEQUENTIAL + FUTILITY', 'KNOW WHEN TO QUIT', '#5fae7c', [[9, 'Numerical integration under the normal approximation.'], [6, 'Normal test statistic with information ∝ size.'], [9, 'Stops losing trials early too.'], [10, 'Separate efficacy and futility spending, any timing.']]),
   };
   for (const [id, extra] of Object.entries(cards)) Object.assign(fighters[id], extra);
 

@@ -131,7 +131,7 @@
     const { parameters: p, result: r } = kit.state.outcome;
     return m.resultTables(tableRaw(), p, r, stats);
   }
-  const tableHtml = t => `<table class="j-table"><caption>${escape(t.title)}</caption>${t.columns ? `<thead><tr>${t.columns.map(c => `<th scope="col">${escape(c)}</th>`).join('')}</tr></thead>` : ''}<tbody>${t.rows.map(row => t.columns ? `<tr>${row.map(c => `<td>${escape(c)}</td>`).join('')}</tr>` : `<tr><th scope="row">${escape(row[0])}</th><td>${escape(row[1])}</td></tr>`).join('')}</tbody></table>${t.note ? `<p class="j-small">${escape(t.note)}</p>` : ''}`;
+  const tableHtml = t => `<div class="j-table-wrap" tabindex="0" role="region" aria-label="${escape(t.title)}"><table class="j-table${t.columns ? ' j-wide' : ''}"><caption>${escape(t.title)}</caption>${t.columns ? `<thead><tr>${t.columns.map(c => `<th scope="col">${escape(c)}</th>`).join('')}</tr></thead>` : ''}<tbody>${t.rows.map(row => t.columns ? `<tr>${row.map(c => `<td>${escape(c)}</td>`).join('')}</tr>` : `<tr><th scope="row">${escape(row[0])}</th><td>${escape(row[1])}</td></tr>`).join('')}</tbody></table></div>${t.note ? `<p class="j-small">${escape(t.note)}</p>` : ''}`;
   function extrasOut() {
     if (!kit.state.outcome) return '';
     return `${kit.method.dropout === false ? '' : `<p class="j-dropout-out">${escape(dropoutLine())}</p>`}${tables().map(tableHtml).join('')}`;
@@ -213,16 +213,30 @@
     document.addEventListener('keydown', skip, true); document.addEventListener('pointerdown', skip, true);
     ring.classList.add('fighting'); you.style.width = '0%'; cpu.style.width = '100%';
     const at = (ms, fn) => fightTimers.push(setTimeout(fn, ms));
-    show('ROUND 1', 'round');
-    at(380, () => show('FIGHT!', 'go'));
-    at(720, () => { show(escape(kit.fighter.move.toUpperCase()), 'move'); you.style.width = `${r.power * 100}%`; cpu.style.width = `${(1 - r.power) * 100}%`; });
-    at(1150, () => {
+    // Group sequential designs fight one round per look, each with its boundary; the bars close in
+    // on the final values look by look. Everything else: ROUND 1, FIGHT!, the special move.
+    const rounds = kit.method.rounds?.(r);
+    let koAt = 1150;
+    if (rounds) {
+      const step = 360;
+      rounds.forEach((label, k) => at(k * step, () => {
+        const share = (k + 1) / rounds.length;
+        show(label, k === rounds.length - 1 ? 'move' : 'round');
+        you.style.width = `${r.power * share * 100}%`; cpu.style.width = `${(1 - r.power * share) * 100}%`;
+      }));
+      koAt = rounds.length * step + 120;
+    } else {
+      show('ROUND 1', 'round');
+      at(380, () => show('FIGHT!', 'go'));
+      at(720, () => { show(escape(kit.fighter.move.toUpperCase()), 'move'); you.style.width = `${r.power * 100}%`; cpu.style.width = `${(1 - r.power) * 100}%`; });
+    }
+    at(koAt, () => {
       show('K.O.<b>0</b>', 'ko');
       const count = ko.querySelector('b'), start = performance.now();
       const tick = now => { const t = Math.min(1, (now - start) / 450); count.textContent = fmt.format(Math.round(r.total * t)); if (t < 1) raf = requestAnimationFrame(tick); };
       raf = requestAnimationFrame(tick);
     });
-    at(1800, () => finish());
+    at(koAt + 650, () => finish());
   }
 
   // ---- Copying ----

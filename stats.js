@@ -671,7 +671,227 @@
     return hazard / total * exposure;
   }
 
-  const stats = { version: '5', anovaPowerAt, welchPowerAt, welchSampleSize, ancovaPowerAt, ancovaSampleSize, crossoverPowerAt, crossoverSampleSize, proportionsMarginPowerAt, proportionsMarginSampleSize, restrictedProportions, scanSampleSize, eventProbability, normalCritical, marginSampleSize, marginPowerAt, normalCdf: x => normalTail(-x), expansionSampleSize, expansionPowerAt, limits, sampleSize, anovaSampleSize, tPowerAt, correlationSampleSize, correlationPowerAt, regressionSampleSize, regressionPowerAt };
+  // ---- Last wave: Jab, Scatter, Bell, Towel ----
+
+  // Regularized incomplete beta I_x(a, b), from the same continued fraction as the F distribution.
+  function regularizedBeta(x, a, b) {
+    if (x <= 0) return 0;
+    if (x >= 1) return 1;
+    const kernel = Math.exp(a * Math.log(x) + b * Math.log1p(-x) - logBeta(a, b));
+    return x < (a + 1) / (a + b + 2) ? kernel * betaFraction(x, a, b) / a : 1 - kernel * betaFraction(1 - x, b, a) / b;
+  }
+  // P(X <= c) for X ~ Binomial(n, p) = I_{1−p}(n − c, c + 1).
+  function binomialCdf(c, n, p) {
+    if (c < 0) return 0;
+    if (c >= n) return 1;
+    return regularizedBeta(1 - p, n - c, c + 1);
+  }
+  // Largest count c with P(X <= c) <= alpha, or −1 if even zero is too likely.
+  function binomialCritical(n, p, alpha) {
+    let lo = -1, hi = n;
+    while (hi - lo > 1) { const mid = Math.floor((lo + hi) / 2); if (binomialCdf(mid, n, p) <= alpha) lo = mid; else hi = mid; }
+    return lo;
+  }
+
+  // Jab: case-driven vaccine efficacy, exact conditional test. Given T cases, vaccine-arm cases
+  // X ~ Bin(T, π), π = r(1 − VE) / (r(1 − VE) + 1), r = vaccine : placebo allocation.
+  // H0: VE <= VE0, rejected when X <= c.
+  const vaccineShare = (ve, ratio) => ratio * (1 - ve) / (ratio * (1 - ve) + 1);
+  function checkVaccine(p) {
+    checkedNumber('alpha', p.alpha, 'One-sided alpha');
+    if (!Number.isFinite(p.ve) || p.ve <= 0 || p.ve >= 1) throw new RangeError('Vaccine efficacy must be strictly between 0 and 1.');
+    if (!Number.isFinite(p.ve0) || p.ve0 < -1 || p.ve - p.ve0 < .001) throw new RangeError('The null efficacy must be at least −1 and below the true efficacy.');
+    if (!Number.isFinite(p.ratio) || p.ratio < .1 || p.ratio > 10) throw new RangeError('Allocation must be between 0.1 and 10.');
+  }
+  function vaccinePowerAt(p) {
+    checkVaccine(p);
+    const { n } = p;
+    if (!Number.isInteger(n) || n < 1 || n > 20000) throw new RangeError('Case totals must be whole numbers from 1 to 20,000.');
+    const p0 = vaccineShare(p.ve0, p.ratio), p1 = vaccineShare(p.ve, p.ratio), critical = binomialCritical(n, p0, p.alpha);
+    return { n, total: n, critical, power: critical < 0 ? 0 : binomialCdf(critical, n, p1), size: critical < 0 ? 0 : binomialCdf(critical, n, p0), boundaryVE: critical < 0 ? null : 1 - critical / (n - critical) / p.ratio };
+  }
+  const vaccineWindow = 100;
+  function vaccineSampleSize(p) {
+    checkVaccine(p); checkedNumber('power', p.power, 'Target power');
+    const { first, stable } = scanSampleSize(p.power, 20000, n => vaccinePowerAt({ ...p, n }), 1, vaccineWindow);
+    return { ...stable, first: first.n, firstPower: first.power, window: vaccineWindow };
+  }
+
+  // Scatter: negative binomial rate ratio. Var(log RR̂) = (1/μ0t + k)/n0 + (1/μ1t + k)/n1 with the
+  // planned rates (Zhu and Lakatos 2014, method 1). One-sided H0: RR >= RR0 against RR < RR0.
+  function checkRates(p) {
+    checkedNumber('alpha', p.alpha, 'One-sided alpha');
+    if (!Number.isFinite(p.rate0) || p.rate0 <= 0 || p.rate0 > 1000) throw new RangeError('Control event rate must be positive.');
+    if (!Number.isFinite(p.rateRatio) || p.rateRatio < .01 || p.rateRatio > 100) throw new RangeError('Rate ratio must be between 0.01 and 100.');
+    if (!Number.isFinite(p.dispersion) || p.dispersion < 0 || p.dispersion > 20) throw new RangeError('Dispersion must be from 0 to 20.');
+    if (!Number.isFinite(p.followUp) || p.followUp <= 0 || p.followUp > 1000) throw new RangeError('Follow-up must be positive.');
+    if (!Number.isFinite(p.nullRatio) || p.nullRatio < .01 || p.nullRatio > 100) throw new RangeError('Null rate ratio must be between 0.01 and 100.');
+    if (Math.log(p.nullRatio) - Math.log(p.rateRatio) < .001) throw new RangeError('The expected rate ratio must be below the null rate ratio.');
+  }
+  function rateRatioPowerAt(p) {
+    checkRates(p);
+    const { n, n2 } = p;
+    if (!Number.isInteger(n) || !Number.isInteger(n2) || n < 2 || n2 < 2 || n + n2 > limits.total) throw new RangeError('Sample sizes must be whole numbers of at least two.');
+    const rate1 = p.rate0 * p.rateRatio;
+    const variance = (1 / (p.rate0 * p.followUp) + p.dispersion) / n + (1 / (rate1 * p.followUp) + p.dispersion) / n2;
+    return { n, n2, total: n + n2, power: normalTail(normalCritical(p.alpha) - (Math.log(p.nullRatio) - Math.log(p.rateRatio)) / Math.sqrt(variance)) };
+  }
+  function rateRatioSampleSize(p) {
+    checkRates(p); checkedNumber('power', p.power, 'Target power'); checkedNumber('ratio', p.ratio, 'Allocation ratio');
+    const second = allocationRule(p.ratio);
+    return firstSampleSize(p.power, allocationMax(second), n => rateRatioPowerAt({ ...p, n, n2: second(n) }));
+  }
+
+  // ---- Bell and Towel: group sequential designs ----
+  // Cumulative spending at information fraction t (Lan–DeMets OBF and Pocock types, Kim–DeMets
+  // power family, Hwang–Shih–DeCani).
+  function spending(t, total, family, parameter) {
+    if (family === 'obf') return 2 * normalTail(normalQuantile(1 - total / 2) / Math.sqrt(t));
+    if (family === 'pocock') return total * Math.log(1 + (Math.E - 1) * t);
+    if (family === 'power') return total * t ** parameter;
+    if (family === 'hsd') return parameter === 0 ? total * t : total * -Math.expm1(-parameter * t) / -Math.expm1(-parameter);
+    throw new RangeError('Choose a spending function.');
+  }
+  function normalQuantile(probability) {
+    let lo = -40, hi = 40;
+    for (let i = 0; i < 200; i++) { const mid = (lo + hi) / 2; if (normalTail(-mid) < probability) lo = mid; else hi = mid; }
+    return (lo + hi) / 2;
+  }
+  const phi = x => Math.exp(-x * x / 2) / rootTwoPi;
+  // Recursive numerical integration (Jennison and Turnbull, chapter 19). A state is the sub-density
+  // of Z at one look over its continuation interval, on a Simpson grid. Z_k has mean θ√t_k.
+  const gridStep = .03;
+  function gridOn(lo, hi) {
+    if (!(hi > lo)) return { z: [], w: [] };
+    const m = 2 * Math.ceil((hi - lo) / gridStep / 2), h = (hi - lo) / m, z = [], w = [];
+    for (let i = 0; i <= m; i++) { z.push(lo + i * h); w.push(h / 3 * (i === 0 || i === m ? 1 : i % 2 ? 4 : 2)); }
+    return { z, w };
+  }
+  // Probability of reaching look k (from state) and then landing above x (upper) or below x.
+  function crossing(state, t, k, theta, x, upper) {
+    const mean = theta * Math.sqrt(t[k]);
+    if (k === 0) return upper ? normalTail(x - mean) : normalTail(mean - x);
+    const dt = t[k] - t[k - 1], sd = Math.sqrt(dt), sk = Math.sqrt(t[k]), sp = Math.sqrt(t[k - 1]);
+    let sum = 0;
+    for (let j = 0; j < state.z.length; j++) {
+      const u = (x * sk - state.z[j] * sp - theta * dt) / sd;
+      sum += state.w[j] * state.f[j] * (upper ? normalTail(u) : normalTail(-u));
+    }
+    return sum;
+  }
+  // Sub-density at look k over (a, b) given the previous state.
+  function advance(state, t, k, theta, a, b) {
+    const mean = theta * Math.sqrt(t[k]), { z, w } = gridOn(Math.max(a, mean - 9), Math.min(b, mean + 9)), f = [];
+    if (k === 0) { for (const x of z) f.push(phi(x - mean)); return { z, w, f }; }
+    const dt = t[k] - t[k - 1], sd = Math.sqrt(dt), sk = Math.sqrt(t[k]), sp = Math.sqrt(t[k - 1]);
+    for (const x of z) {
+      let sum = 0;
+      for (let j = 0; j < state.z.length; j++) sum += state.w[j] * state.f[j] * phi((x * sk - state.z[j] * sp - theta * dt) / sd);
+      f.push(sum * sk / sd);
+    }
+    return { z, w, f };
+  }
+  // Bisection for a bound x where crossing probability equals target (upper: decreasing in x).
+  function solveBound(fn, target, upper) {
+    let lo = -20, hi = 20;
+    for (let i = 0; i < 80; i++) { const mid = (lo + hi) / 2; if ((fn(mid) > target) === upper) lo = mid; else hi = mid; }
+    return (lo + hi) / 2;
+  }
+  // Efficacy bounds under H0, ignoring futility (non-binding).
+  function efficacyBounds(t, alpha, family, parameter) {
+    const b = [], spent = t.map(x => spending(x, alpha, family, parameter));
+    let state = null;
+    for (let k = 0; k < t.length; k++) {
+      const target = spent[k] - (k ? spent[k - 1] : 0);
+      b.push(solveBound(x => crossing(state, t, k, 0, x, true), target, true));
+      state = advance(state, t, k, 0, -Infinity, b[k]);
+    }
+    return b;
+  }
+  // Walk the looks with bounds a (futility) and b (efficacy) at drift θ.
+  function walk(t, a, b, theta) {
+    const up = [], down = [];
+    let state = null;
+    for (let k = 0; k < t.length; k++) {
+      up.push(crossing(state, t, k, theta, b[k], true));
+      down.push(Number.isFinite(a[k]) ? crossing(state, t, k, theta, a[k], false) : 0);
+      state = advance(state, t, k, theta, a[k], b[k]);
+    }
+    return { up, down };
+  }
+  // Interim futility bounds from beta spending under the alternative, capped at the efficacy bound;
+  // the final futility bound equals the final efficacy bound.
+  function futilityBounds(t, b, theta, beta, family, parameter) {
+    const K = t.length, a = [], spent = t.map(x => spending(x, beta, family, parameter));
+    let state = null;
+    for (let k = 0; k < K - 1; k++) {
+      const target = spent[k] - (k ? spent[k - 1] : 0), fn = x => crossing(state, t, k, theta, x, false);
+      a.push(fn(b[k]) <= target ? b[k] : solveBound(fn, target, false));
+      state = advance(state, t, k, theta, a[k], b[k]);
+    }
+    a.push(b[K - 1]);
+    return a;
+  }
+  const sum = values => values.reduce((total, value) => total + value, 0);
+  function checkSequential(p) {
+    checkedNumber('alpha', p.alpha, 'One-sided alpha');
+    checkedNumber('power', p.power, 'Target power');
+    const t = p.fractions;
+    if (!Array.isArray(t) || t.length < 2 || t.length > 3 || t.at(-1) !== 1 || t.some((x, i) => !(x > (i ? t[i - 1] : 0)) || x > 1)) throw new RangeError('Information fractions must increase and end at 1.');
+    if (t[0] < .05 || t.some((x, i) => i && x - t[i - 1] < .05)) throw new RangeError('Looks must be at least 5% of the information apart.');
+    for (const [family, parameter] of [[p.spending, p.spendingParameter], ...(p.futility ? [[p.futilitySpending, p.futilityParameter]] : [])]) {
+      if (!['obf', 'pocock', 'power', 'hsd'].includes(family)) throw new RangeError('Choose a spending function.');
+      if (family === 'power' && !(parameter >= .1 && parameter <= 10)) throw new RangeError('The power-family ρ must be from 0.1 to 10.');
+      if (family === 'hsd' && !(parameter >= -40 && parameter <= 40)) throw new RangeError('The Hwang–Shih–DeCani γ must be from −40 to 40.');
+    }
+    if (!Number.isFinite(p.fixedSize) || p.fixedSize <= 0 || p.fixedSize > limits.total) throw new RangeError('The fixed-design size must be positive and within the limit.');
+  }
+  const designCache = new Map();
+  // One-sided group sequential design. fixedSize is the fixed-design size that has the target power
+  // (drift z_α + z_β); the maximum size is the inflation factor times it.
+  function sequentialDesign(p) {
+    checkSequential(p);
+    const key = JSON.stringify([p.fractions, p.alpha, p.power, p.spending, p.spendingParameter, p.futility, p.futilitySpending, p.futilityParameter]);
+    if (designCache.has(key)) return designCache.get(key);
+    const t = p.fractions, K = t.length, beta = 1 - p.power, fixed = normalCritical(p.alpha) + normalCritical(beta);
+    const b = efficacyBounds(t, p.alpha, p.spending, p.spendingParameter);
+    let theta, a;
+    const bisect = (fn, lo, hi) => { for (let i = 0; i < 70; i++) { const mid = (lo + hi) / 2; if (fn(mid)) hi = mid; else lo = mid; } return (lo + hi) / 2; };
+    if (!p.futility) {
+      a = t.map(() => -Infinity);
+      theta = bisect(th => sum(walk(t, a, b, th).up) >= p.power, fixed * .5, fixed * 3);
+    } else {
+      theta = bisect(th => { const aa = futilityBounds(t, b, th, beta, p.futilitySpending, p.futilityParameter); return sum(walk(t, aa, b, th).down) <= beta; }, fixed * .5, fixed * 3);
+      a = futilityBounds(t, b, theta, beta, p.futilitySpending, p.futilityParameter);
+    }
+    const h1 = walk(t, a, b, theta), h0 = walk(t, a, b, 0);
+    const stops = r => t.map((_, k) => k < K - 1 ? r.up[k] + r.down[k] : 1 - sum(r.up.slice(0, -1)) - sum(r.down.slice(0, -1)));
+    const stopH1 = stops(h1), stopH0 = stops(h0);
+    const design = {
+      fractions: t, efficacy: b, futility: p.futility ? a : null, drift: theta, fixedDrift: fixed, inflation: (theta / fixed) ** 2,
+      alphaSpent: t.map(x => spending(x, p.alpha, p.spending, p.spendingParameter)),
+      betaSpent: p.futility ? t.map(x => spending(x, beta, p.futilitySpending, p.futilityParameter)) : null,
+      stopH1, stopH0, expectedH1: sum(stopH1.map((s, k) => s * t[k])), expectedH0: sum(stopH0.map((s, k) => s * t[k])),
+    };
+    designCache.set(key, design);
+    return design;
+  }
+  // Power with the designed bounds when the maximum size is n (drift scales with √(n / fixed size)).
+  function sequentialPowerAt(p) {
+    const d = sequentialDesign(p), { n } = p;
+    if (!Number.isInteger(n) || n < 1 || n > limits.total) throw new RangeError('Maximum size must be a whole number within the limit.');
+    const a = d.futility ?? d.fractions.map(() => -Infinity);
+    const power = Math.max(0, Math.min(1, sum(walk(d.fractions, a, d.efficacy, d.fixedDrift * Math.sqrt(n / p.fixedSize)).up)));
+    return { n, total: n, power, looks: d.fractions.map(x => Math.ceil(x * n - 1e-9)) };
+  }
+  // Maximum size: inflation × fixed size, rounded up (to an even total for two equal groups).
+  function sequentialSampleSize(p) {
+    const d = sequentialDesign(p), raw = d.inflation * p.fixedSize - 1e-9;
+    const n = p.evenTotal ? 2 * Math.ceil(raw / 2) : Math.ceil(raw);
+    return { ...sequentialPowerAt({ ...p, n }), design: d };
+  }
+
+  const stats = { version: '6', binomialCdf, vaccinePowerAt, vaccineSampleSize, rateRatioPowerAt, rateRatioSampleSize, spending, sequentialDesign, sequentialPowerAt, sequentialSampleSize, anovaPowerAt, welchPowerAt, welchSampleSize, ancovaPowerAt, ancovaSampleSize, crossoverPowerAt, crossoverSampleSize, proportionsMarginPowerAt, proportionsMarginSampleSize, restrictedProportions, scanSampleSize, eventProbability, normalCritical, marginSampleSize, marginPowerAt, normalCdf: x => normalTail(-x), expansionSampleSize, expansionPowerAt, limits, sampleSize, anovaSampleSize, tPowerAt, correlationSampleSize, correlationPowerAt, regressionSampleSize, regressionPowerAt };
   if (typeof module === 'undefined') {
     globalThis.StatFighter = { stats };
   } else {

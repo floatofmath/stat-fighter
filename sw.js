@@ -1,4 +1,4 @@
-const version = 'v21';
+const version = 'v22';
 const cachePrefix = `stat-fighter-${self.registration.scope}-`;
 const cacheName = `${cachePrefix}${version}`;
 // Pages request the half-size copies in assets/web/. Only the full-size originals in assets/ are
@@ -23,8 +23,12 @@ const files = [
   './assets/anchor-arcade-v1.webp', './assets/anchor-stage-v1.webp',
   './assets/switch-arcade-v1.webp', './assets/switch-stage-v1.webp',
   './assets/parry-arcade-v1.webp', './assets/parry-stage-v1.webp',
+  './assets/jab-arcade-v1.webp', './assets/jab-stage-v1.webp',
+  './assets/scatter-arcade-v1.webp', './assets/scatter-stage-v1.webp',
+  './assets/bell-arcade-v1.webp', './assets/bell-stage-v1.webp',
+  './assets/towel-arcade-v1.webp', './assets/towel-stage-v1.webp',
   // Thumbnail tier (small, precached directly).
-  './assets/thumb/aegis-arcade-v1.webp', './assets/thumb/anchor-arcade-v1.webp', './assets/thumb/bastion-arcade-v1.webp', './assets/thumb/chi-arcade-v1.webp', './assets/thumb/echo-arcade-v1.webp', './assets/thumb/harbor-arcade-v1.webp', './assets/thumb/iwan-arcade-v1.webp', './assets/thumb/maverick-arcade-v2.webp', './assets/thumb/mirror-arcade-v2.webp', './assets/thumb/nova-arcade-v1.webp', './assets/thumb/null-arcade-v1.webp', './assets/thumb/parry-arcade-v1.webp', './assets/thumb/pip-arcade-v1.webp', './assets/thumb/ratio-arcade-v1.webp', './assets/thumb/rook-arcade-v1.webp', './assets/thumb/switch-arcade-v1.webp', './assets/thumb/tess-arcade-v1.webp', './assets/thumb/vector-arcade-v1.webp', './assets/thumb/volt-arcade-v1.webp',
+  './assets/thumb/aegis-arcade-v1.webp', './assets/thumb/anchor-arcade-v1.webp', './assets/thumb/bastion-arcade-v1.webp', './assets/thumb/bell-arcade-v1.webp', './assets/thumb/chi-arcade-v1.webp', './assets/thumb/echo-arcade-v1.webp', './assets/thumb/harbor-arcade-v1.webp', './assets/thumb/iwan-arcade-v1.webp', './assets/thumb/jab-arcade-v1.webp', './assets/thumb/maverick-arcade-v2.webp', './assets/thumb/mirror-arcade-v2.webp', './assets/thumb/nova-arcade-v1.webp', './assets/thumb/null-arcade-v1.webp', './assets/thumb/parry-arcade-v1.webp', './assets/thumb/pip-arcade-v1.webp', './assets/thumb/ratio-arcade-v1.webp', './assets/thumb/rook-arcade-v1.webp', './assets/thumb/scatter-arcade-v1.webp', './assets/thumb/switch-arcade-v1.webp', './assets/thumb/tess-arcade-v1.webp', './assets/thumb/towel-arcade-v1.webp', './assets/thumb/vector-arcade-v1.webp', './assets/thumb/volt-arcade-v1.webp',
   './index.html', './style.css', './app.js', './stats.js', './manifest.webmanifest',
   './assets/icon-192.png', './assets/icon-512.png', './assets/icon-maskable.png', './assets/apple-touch-icon.png',
 ];

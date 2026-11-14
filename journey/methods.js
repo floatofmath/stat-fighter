@@ -640,6 +640,281 @@
     },
   });
 
+  // ---- Last wave: Jab, Scatter, Bell, Towel ----
+
+  register({
+    id: 'vaccine-efficacy',
+    name: 'Vaccine efficacy · exact conditional test on cases',
+    marginPlanning: true,
+    signed: false,
+    unit: 'cases',
+    totalLabel: 'TOTAL CASES',
+    scoreLabel: 'REQUIRED CASES',
+    missionLabel: 'CASE-DRIVEN MISSION',
+    waitingAction: 'Find the case target.',
+    effectSymbol: 'VE',
+    defaults: { mode: 'efficacy', ve: '.6', ve0: '.3', rr: '.4', rr0: '.7', alpha: '.025', power: '.9', ratio: '1', attackRate: '.02', nonEvaluable: '.1' },
+    modes: [
+      { id: 'efficacy', label: 'Vaccine efficacy', fields: ['ve', 've0'] },
+      { id: 'risk', label: 'Relative risk (1 − VE)', fields: ['rr', 'rr0'] },
+    ],
+    tuningFields: ['alpha', 'power', 'ratio'],
+    fields: {
+      ve: numeric('Expected vaccine efficacy · VE', 'True efficacy you plan for: 0.60 means 60% fewer cases.', { min: 0, max: 1, presets: ['.5', '.6', '.8'] }),
+      ve0: numeric('Null efficacy · VE₀', '0 for plain superiority; 0.30 is the usual regulatory lower bound.', { min: -1, max: 1, presets: ['0', '.3'] }),
+      rr: numeric('Expected relative risk · vaccine / placebo', 'Attack-rate ratio, 1 − VE.', { min: 0, max: 1 }),
+      rr0: numeric('Null relative risk', '1 − VE₀; 0.70 for a 30% efficacy bound.', { min: 0, max: 2 }),
+      alpha: numeric('One-sided alpha', '0.025 one-sided is the usual regulatory level.', { min: .0001, max: .2, presets: ['.01', '.025', '.05'] }),
+      ratio: numeric('Allocation · vaccine : placebo', '1 means 1:1; 2 means twice as many vaccinated.', { min: .1, max: 10, presets: ['1', '2', '3'] }),
+      attackRate: numeric('Placebo attack rate over follow-up', 'Proportion of placebo participants expected to become cases.', { min: 0, max: 1 }),
+      nonEvaluable: numeric('Non-evaluable fraction', 'Proportion of enrolled not in the efficacy analysis.', { min: 0, max: .9 }),
+    },
+    design(raw) {
+      let ve, ve0;
+      if (raw.mode === 'efficacy') { ve = number(raw, 've', 'Expected efficacy'); ve0 = number(raw, 've0', 'Null efficacy'); }
+      else { ve = 1 - number(raw, 'rr', 'Expected relative risk'); ve0 = 1 - number(raw, 'rr0', 'Null relative risk'); }
+      const field = raw.mode === 'efficacy' ? ['ve', 've0'] : ['rr', 'rr0'];
+      if (!(ve > 0 && ve < 1)) fail(field[0], raw.mode === 'efficacy' ? 'Expected efficacy must be strictly between 0 and 1.' : 'Expected relative risk must be strictly between 0 and 1.');
+      if (!(ve0 >= -1) || ve - ve0 < .001) fail(field[1], 'The null bound must be below the expected efficacy (above the expected relative risk) and at least −1 in efficacy terms.');
+      return { ve, ve0 };
+    },
+    effect: (raw, design) => design.ve,
+    effectRange: { min: -1, max: 1, label: 'Vaccine efficacy' },
+    effectErrorField: 've',
+    derive(raw) {
+      try {
+        const p = this.normalize(raw), share = v => p.ratio * (1 - v) / (p.ratio * (1 - v) + 1);
+        return `H₀: VE ≤ ${Number(p.ve0.toPrecision(6))} · vaccine share of cases π = ${share(p.ve).toFixed(4)} expected, ${share(p.ve0).toFixed(4)} under H₀`;
+      } catch (e) { return e.message; }
+    },
+    effectHint: 'Count cases, not people: the trial stops when enough cases have accrued.',
+    formula: 'VE = 1 − attack rate ratio',
+    solve: (stats, p) => stats.vaccineSampleSize(p),
+    powerAt: (stats, p, n) => stats.vaccinePowerAt({ ...p, n }),
+    allocations: r => [['Win if vaccine cases ≤', r.critical], ['Placebo cases at least', r.total - r.critical]],
+    dropout: false,
+    extraTitle: 'FROM CASES TO PARTICIPANTS',
+    extraFields: ['attackRate', 'nonEvaluable'],
+    resultTables(raw, p, r) {
+      const rows = [
+        ['Success boundary', `≤ ${r.critical} of ${r.total} cases in the vaccine arm`],
+        ['Observed VE at the boundary', `${(r.boundaryVE * 100).toFixed(1)}%`],
+        ['Type I error at this size', r.size.toFixed(5)],
+        ['Smallest total reaching the target', r.first === r.total ? `${r.first} (power stays above target)` : `${r.first} (${(r.firstPower * 100).toFixed(2)}%), but power dips below target again before ${r.total}`],
+      ];
+      const conversion = [];
+      try {
+        const attack = number(raw, 'attackRate', 'Placebo attack rate'), lost = number(raw, 'nonEvaluable', 'Non-evaluable fraction');
+        if (!(attack > 0 && attack < 1)) fail('attackRate', 'Placebo attack rate must be strictly between 0 and 1.');
+        if (lost < 0 || lost >= .9) fail('nonEvaluable', 'Non-evaluable fraction must be from 0 to below 0.9.');
+        const perPerson = (p.ratio * attack * (1 - p.ve) + attack) / (1 + p.ratio), evaluable = Math.ceil(r.total / perPerson - 1e-9), enrolled = Math.ceil(evaluable / (1 - lost) - 1e-9);
+        const vaccinated = Math.round(enrolled * p.ratio / (1 + p.ratio));
+        conversion.push(['Expected cases per evaluable participant', perPerson.toFixed(5)], ['Evaluable participants', fmtCount(evaluable)], ['Participants to enrol', fmtCount(enrolled)], ['Vaccine / placebo (approx.)', `${fmtCount(vaccinated)} / ${fmtCount(enrolled - vaccinated)}`]);
+      } catch (error) { conversion.push(['Participants not calculated', error.message]); }
+      return [{ title: 'Case boundary', rows }, { title: 'Participants for the case target', rows: conversion, note: 'Assumes the planned attack rate over the whole follow-up and the planned efficacy. The case total above is the verified number.' }];
+    },
+    calculationNote: `Exact binomial: given T cases the vaccine-arm count is Bin(T, π), π = r(1 − VE)/(r(1 − VE) + 1). Reject H₀: VE ≤ VE₀ when vaccine cases ≤ c, c the largest count with P(X ≤ c | VE₀) ≤ α. Power is saw-toothed in T; the answer is the smallest T after which power stays at or above target for the next 100 totals.`,
+    allocationRule: 'Smallest total case count after which exact power stays at or above the target for the next 100 case totals. The plain first crossing is shown separately because exact power can dip again.',
+    notice: 'CASE-DRIVEN: the answer is a number of cases. Convert to participants in the second step below the result.',
+    assumptions: 'Randomized vaccine and placebo arms with a fixed allocation, a common case definition, and cases arising independently, so that conditional on the total number of cases the vaccine-arm count is binomial (Chan and Bohidar 1998). The test is exact for that conditional model. VE₀ = 0.3 gives the usual super-superiority design for regulatory vaccine trials; VE₀ = 0 is plain superiority. Converting cases to participants needs a planned attack rate and follow-up, which carry their own uncertainty. No interim analyses or stratification.',
+    help: {
+      ve: ['Expected vaccine efficacy', 'The efficacy you plan for: 1 − (attack rate vaccinated ÷ attack rate placebo). 0.6 means 60% fewer cases. Planning with an optimistic VE makes the trial too small.'],
+      ve0: ['Null efficacy bound', 'H₀ says VE ≤ VE₀. 0 is ordinary superiority; regulators often require the lower confidence bound of VE to exceed 0.3, which corresponds to VE₀ = 0.3.'],
+      rr: ['Relative risk', 'Attack rate in the vaccine arm divided by placebo, equal to 1 − VE.'],
+      rr0: ['Null relative risk', 'The relative risk under H₀, 1 − VE₀.'],
+      ratio: ['Allocation', 'Vaccinated participants per placebo participant. More vaccinated participants means more of the cases come from placebo, which costs cases.'],
+      attackRate: ['Placebo attack rate', 'Proportion of placebo participants who become cases during follow-up. Lower attack rates need many more participants for the same case count.'],
+      nonEvaluable: ['Non-evaluable fraction', 'Participants enrolled but excluded from the efficacy population (protocol deviations, early infection). The enrolment line divides by 1 minus this fraction.'],
+    },
+  });
+
+  register({
+    id: 'negative-binomial',
+    name: 'Negative binomial rate ratio · approximate',
+    marginPlanning: true,
+    signed: false,
+    unit: 'participants',
+    totalLabel: 'TOTAL PARTICIPANTS',
+    effectSymbol: 'RR',
+    defaults: { mode: 'ratio', rate0: '.8', rateRatio: '.75', rate0b: '.8', rate1: '.6', dispersion: '.5', followUp: '1', nullRatio: '1', alpha: '.025', power: '.9', ratio: '1' },
+    modes: [
+      { id: 'ratio', label: 'Control rate + rate ratio', fields: ['rate0', 'rateRatio'] },
+      { id: 'rates', label: 'Two event rates', fields: ['rate0b', 'rate1'] },
+    ],
+    designFields: ['dispersion', 'followUp', 'nullRatio'],
+    tuningFields: ['alpha', 'power', 'ratio'],
+    fields: {
+      rate0: numeric('Control event rate', 'Events per participant per time unit, e.g. 0.8 exacerbations per year.', { min: 0 }),
+      rateRatio: numeric('Expected rate ratio · treatment / control', 'Below 1 means fewer events on treatment.', { min: .01, max: 100, presets: ['.6', '.75', '.85'] }),
+      rate0b: numeric('Control event rate', 'Events per participant per time unit.', { min: 0 }),
+      rate1: numeric('Treatment event rate', 'Same time unit as control.', { min: 0 }),
+      dispersion: numeric('Dispersion · k', 'Variance = μ + kμ². 0 is Poisson; 0.3–1 is common for exacerbations.', { min: 0, max: 20, presets: ['0', '.5', '1'] }),
+      followUp: numeric('Follow-up per participant', 'Common exposure time, in the rate’s time unit.', { min: 0 }),
+      nullRatio: numeric('Null rate ratio · RR₀', '1 for superiority; above 1 (e.g. 1.15) for non-inferiority.', { min: .01, max: 100, presets: ['1', '1.15', '1.25'] }),
+      alpha: numeric('One-sided alpha', '0.025 one-sided matches a two-sided 0.05 superiority test.', { min: .0001, max: .2, presets: ['.01', '.025', '.05'] }),
+      ratio: numeric('Allocation · n_treatment / n_control', 'Treatment group size relative to control.', { min: .1, max: 10, presets: ['0.5', '1', '2'] }),
+    },
+    design(raw) {
+      const dispersion = number(raw, 'dispersion', 'Dispersion'), followUp = number(raw, 'followUp', 'Follow-up'), nullRatio = number(raw, 'nullRatio', 'Null rate ratio');
+      if (dispersion < 0 || dispersion > 20) fail('dispersion', 'Dispersion must be from 0 to 20.');
+      if (!(followUp > 0) || followUp > 1000) fail('followUp', 'Follow-up must be positive.');
+      if (nullRatio < .01 || nullRatio > 100) fail('nullRatio', 'Null rate ratio must be between 0.01 and 100.');
+      let rate0, rateRatio;
+      if (raw.mode === 'ratio') { rate0 = positive(raw, 'rate0', 'Control event rate'); rateRatio = positive(raw, 'rateRatio', 'Rate ratio'); }
+      else { rate0 = positive(raw, 'rate0b', 'Control event rate'); rateRatio = positive(raw, 'rate1', 'Treatment event rate') / rate0; }
+      if (rate0 > 1000) fail(raw.mode === 'ratio' ? 'rate0' : 'rate0b', 'Control event rate must be at most 1000 per time unit.');
+      if (rateRatio < .01 || rateRatio > 100) fail(raw.mode === 'ratio' ? 'rateRatio' : 'rate1', 'The rate ratio must be between 0.01 and 100.');
+      return { rate0, rateRatio, dispersion, followUp, nullRatio };
+    },
+    effect: (raw, design) => design.rateRatio,
+    effectRange: { min: .01, max: 100, label: 'Rate ratio' },
+    effectErrorField: 'rateRatio',
+    validateParameters(p, raw) {
+      if (Math.log(p.nullRatio) - Math.log(p.rateRatio) < .001) fail(raw.mode === 'ratio' ? 'rateRatio' : 'rate1', 'The expected rate ratio must be below the null rate ratio: Scatter plans for fewer events on treatment.');
+    },
+    derive(raw) {
+      try { const p = this.normalize(raw); return `H₀: RR ≥ ${p.nullRatio} · expected RR = ${Number(p.rateRatio.toPrecision(6))} · ${Number((p.rate0 * p.followUp).toPrecision(6))} vs ${Number((p.rate0 * p.rateRatio * p.followUp).toPrecision(6))} events per participant`; }
+      catch (e) { return e.message; }
+    },
+    effectHint: 'Recurrent events per participant: exacerbations, relapses, infections.',
+    formula: 'treatment rate / control rate',
+    solve: (stats, p) => stats.rateRatioSampleSize(p),
+    powerAt: (stats, p, n) => stats.rateRatioPowerAt({ ...p, n, n2: secondGroup(n, p.ratio) }),
+    allocations: r => [['Control', r.n], ['Treatment', r.n2]],
+    notice: 'Over-dispersed counts: the dispersion k matters as much as the rate ratio. Approximate planning on the log rate ratio.',
+    calculationNote: 'Wald test on log RR with the variance at the planned rates: Var = (1/(μ₀t) + k)/n₀ + (1/(μ₁t) + k)/n₁ (Zhu and Lakatos 2014, method 1; Keene et al. 2007). One-sided H₀: RR ≥ RR₀. R glm.nb simulations agree to within about one percentage point of power.',
+    allocationRule: 'Smallest integer control group size reaching the approximate target power. Treatment = max(2, round(control × ratio)), half ties up.',
+    assumptions: 'Independent participants, event counts following a negative binomial distribution with a common dispersion k in both groups, and the same follow-up time for everyone. The rate ratio compares mean event rates. The answer comes from a normal approximation for the log rate ratio with the variance evaluated at the planned rates; it is less reliable with very few events. Variable follow-up, dropout and covariate adjustment need a more detailed model.',
+    advice: p => p.rate0 * p.followUp < .3 ? ['Fewer than 0.3 expected control events per participant: the normal approximation gets shaky. Consider longer follow-up.'] : [],
+    help: {
+      dispersion: ['Dispersion k', 'Over-dispersion: the variance of a participant’s count is μ + kμ². k = 0 is Poisson. Estimate it from a previous trial with the same endpoint and follow-up; values between 0.3 and 1 are common for COPD and asthma exacerbations.'],
+      nullRatio: ['Null rate ratio', 'H₀ says RR ≥ RR₀. 1 is ordinary superiority. A value above 1, such as 1.15, plans a non-inferiority trial; a value below 1 asks for a win by a margin.'],
+      rateRatio: ['Rate ratio', 'Treatment event rate divided by control. 0.75 means 25% fewer events.'],
+      rate0: ['Control event rate', 'Mean events per participant per time unit in the control group, from earlier data.'],
+      followUp: ['Follow-up', 'How long each participant is observed, in the same time unit as the rate. Longer follow-up gives more events per participant.'],
+      rate0b: ['Control event rate', 'Mean events per participant per time unit in the control group. This mode has its own draft, separate from the rate-ratio mode.'],
+      rate1: ['Treatment event rate', 'Mean events per participant per time unit on treatment, in the same unit as control. The rate ratio is treatment ÷ control.'],
+    },
+  });
+
+  // Bell and Towel share the design fields; Towel adds non-binding futility.
+  const spendingOptions = [{ value: 'obf', label: 'Lan–DeMets O’Brien–Fleming type' }, { value: 'pocock', label: 'Lan–DeMets Pocock type' }, { value: 'power', label: 'Kim–DeMets power family (ρ)' }, { value: 'hsd', label: 'Hwang–Shih–DeCani (γ)' }];
+  const spendingNames = Object.fromEntries(spendingOptions.map(o => [o.value, o.label]));
+  const sequentialFields = {
+    looks: { label: 'Number of looks', hint: 'Interim analyses plus the final one.', options: [{ value: '2', label: '2 looks · one interim' }, { value: '3', label: '3 looks · two interims' }] },
+    t1: numeric('First interim · information fraction', 'Share of the final information at the first look, e.g. 0.5.', { min: .05, max: .95, presets: ['.33', '.5', '.67'] }),
+    t2: numeric('Second interim · information fraction', 'Used only with three looks. Must lie after the first.', { min: .1, max: .95, presets: ['.67', '.75'] }),
+    spending: { label: 'Efficacy spending function', hint: 'How the one-sided alpha is spent across looks.', options: spendingOptions },
+    spendingParameter: numeric('Efficacy spending parameter', 'ρ for the power family (3 is OBF-like), γ for HSD (−4 is OBF-like). Ignored by the Lan–DeMets families.', { min: -40, max: 40 }),
+    futilitySpending: { label: 'Futility (beta) spending function', hint: 'How the type II error is spent on futility stops.', options: spendingOptions },
+    futilityParameter: numeric('Futility spending parameter', 'ρ or γ for the futility family; ignored by the Lan–DeMets families.', { min: -40, max: 40 }),
+    effect: numeric('Standardized effect · d', 'Two equal groups, normal outcome: mean difference ÷ SD.', { min: -5, max: 5 }),
+    hazardRatio: numeric('Hazard ratio', 'Event-driven design with equal allocation; the size is a number of events.', { min: .1, max: 10 }),
+    fixedSize: numeric('Fixed-design sample size', 'From any fighter: the size that gives your target power without interim looks.', { min: 1 }),
+    alpha: numeric('One-sided alpha', '0.025 one-sided is the regulatory default.', { min: .0001, max: .2, presets: ['.01', '.025', '.05'] }),
+  };
+  const sequentialBase = {
+    marginPlanning: true,
+    signed: false,
+    distinctModes: true,
+    unit: 'participants or events',
+    totalLabel: 'MAXIMUM SIZE AT THE FINAL LOOK',
+    scoreLabel: 'MAXIMUM SAMPLE SIZE',
+    missionLabel: 'INTERIM LOOK MISSION',
+    effectSymbol: 'θ',
+    modes: [
+      { id: 'effect', label: 'Effect size d · two groups', fields: ['effect'] },
+      { id: 'hazard', label: 'Hazard ratio · events', fields: ['hazardRatio'] },
+      { id: 'fixed', label: 'Fixed-design size from another fighter', fields: ['fixedSize'] },
+    ],
+    tuningFields: ['alpha', 'power'],
+    fields: sequentialFields,
+    effectRange: { min: -1e7, max: 1e7, label: 'Fixed-design size' },
+    effectErrorField: 'effect',
+    design(raw, futility) {
+      if (!['2', '3'].includes(raw.looks)) fail('looks', 'Choose two or three looks.');
+      const t1 = number(raw, 't1', 'First interim fraction'), t2 = number(raw, 't2', 'Second interim fraction');
+      if (t1 < .05 || t1 > .95) fail('t1', 'The first interim must be between 5% and 95% of the information.');
+      if (t2 < .1 || t2 > .95 || t2 - t1 < .05) fail('t2', 'The second interim must come at least 5% of the information after the first, and before 95%.');
+      const parameter = (family, key) => { const value = number(raw, key, 'Spending parameter'); if (family === 'power' && (value < .1 || value > 10)) fail(key, 'The power-family ρ must be from 0.1 to 10.'); if (family === 'hsd' && (value < -40 || value > 40)) fail(key, 'γ must be from −40 to 40.'); return value; };
+      if (!spendingNames[raw.spending]) fail('spending', 'Choose an efficacy spending function.');
+      const out = { fractions: raw.looks === '2' ? [t1, 1] : [t1, t2, 1], spending: raw.spending, spendingParameter: parameter(raw.spending, 'spendingParameter'), futility: Boolean(futility) };
+      if (futility) {
+        if (!spendingNames[raw.futilitySpending]) fail('futilitySpending', 'Choose a futility spending function.');
+        Object.assign(out, { futilitySpending: raw.futilitySpending, futilityParameter: parameter(raw.futilitySpending, 'futilityParameter') });
+      }
+      return out;
+    },
+    // The "effect" here is the fixed-design size each mode implies; normalize adds alpha and power.
+    effect(raw) {
+      if (raw.mode === 'fixed') { const n = positive(raw, 'fixedSize', 'Fixed-design size'); if (n > 1e6) fail('fixedSize', 'Fixed-design size must be at most 1,000,000.'); return n; }
+      if (raw.mode === 'effect') { const d = number(raw, 'effect', 'Effect size'); if (Math.abs(d) < .001 || Math.abs(d) > 5) fail('effect', 'The absolute effect size must be from 0.001 to 5.'); return d; }
+      const hr = positive(raw, 'hazardRatio', 'Hazard ratio'); if (hr < .1 || hr > 10 || Math.abs(Math.log(hr)) < .001) fail('hazardRatio', 'Hazard ratio must be 0.1–10 and not 1.'); return hr;
+    },
+    validateParameters(p, raw) {
+      const z = engine.normalCritical(p.alpha) + engine.normalCritical(1 - p.power);
+      p.input = p.effect; p.mode = raw.mode;
+      p.fixedSize = raw.mode === 'fixed' ? p.effect : raw.mode === 'effect' ? 4 * z * z / (p.effect * p.effect) : 4 * z * z / Math.log(p.effect) ** 2;
+      p.evenTotal = raw.mode === 'effect';
+      if (p.fixedSize > 1e6) fail(raw.mode === 'fixed' ? 'fixedSize' : raw.mode === 'effect' ? 'effect' : 'hazardRatio', 'The design would exceed the 1,000,000-unit limit.');
+    },
+    derive(raw) {
+      try { const p = this.normalize(raw); return `FIXED-DESIGN SIZE ${Number(p.fixedSize.toPrecision(7))} · LOOKS AT ${p.fractions.map(x => `${Math.round(x * 100)}%`).join(' / ')} · ${spendingNames[p.spending]}`; }
+      catch (e) { return e.message; }
+    },
+    effectHint: 'The size without interim looks; interim looks inflate it slightly.',
+    formula: '',
+    solve: (stats, p) => stats.sequentialSampleSize(p),
+    powerAt: (stats, p, n) => stats.sequentialPowerAt({ ...p, n }),
+    allocations: r => r.looks.map((n, k) => [k === r.looks.length - 1 ? 'Final look' : `Look ${k + 1}`, n]),
+    rounds: r => r.looks.map((n, k) => `${k === r.looks.length - 1 ? 'FINAL' : `ROUND ${k + 1}`}<b>Z ≥ ${r.design.efficacy[k].toFixed(2)}</b>`),
+    resultTables(raw, p, r) {
+      const d = r.design, K = d.fractions.length, futility = Boolean(d.futility);
+      const rows = d.fractions.map((t, k) => [k === K - 1 ? 'Final' : `${k + 1}`, `${(t * 100).toFixed(1)}%`, fmtCount(r.looks[k]), d.efficacy[k].toFixed(4), engine.normalCdf(-d.efficacy[k]).toFixed(5), d.alphaSpent[k].toFixed(5), ...(futility ? [d.futility[k].toFixed(4), d.betaSpent[k].toFixed(5)] : []), `${(d.stopH1[k] * 100).toFixed(1)}%`, `${(d.stopH0[k] * 100).toFixed(1)}%`]);
+      const unit = p.mode === 'hazard' ? 'events' : p.mode === 'effect' ? 'participants' : 'units';
+      return [
+        { title: 'Boundaries per look', columns: ['Look', 'Information', `Cumulative ${unit}`, 'Efficacy Z ≥', 'Nominal p', 'α spent', ...(futility ? ['Futility Z <', 'β spent'] : []), 'Stop | H1', 'Stop | H0'], rows },
+        { title: 'Design summary', rows: [['Fixed-design size', Number(p.fixedSize.toPrecision(7))], ['Inflation factor', d.inflation.toFixed(4)], ['Maximum size', fmtCount(r.total)], ['Expected size under H1', fmtCount(Math.round(d.expectedH1 * r.total))], ['Expected size under H0', fmtCount(Math.round(d.expectedH0 * r.total))], ['Efficacy spending', `${spendingNames[p.spending]}${['power', 'hsd'].includes(p.spending) ? ` (${p.spendingParameter})` : ''}`], ...(futility ? [['Futility spending (non-binding)', `${spendingNames[p.futilitySpending]}${['power', 'hsd'].includes(p.futilitySpending) ? ` (${p.futilityParameter})` : ''}`]] : [])], note: 'Expected sizes count a stop at an interim as that look’s cumulative size, with futility stops obeyed.' },
+      ];
+    },
+    additionalReceipt: (raw, p) => [['Fixed-design size', p.fixedSize], ['Unit', p.mode === 'hazard' ? 'events' : p.mode === 'effect' ? 'participants, two equal groups' : 'as for the fixed design']],
+    allocationRule: 'Maximum size = inflation factor × fixed-design size, rounded up (to an even total for two equal groups). Interim sizes are the information fractions of the maximum, rounded up.',
+    help: {
+      looks: ['Number of looks', 'Two looks is one interim analysis plus the final; three is two interims plus the final. Every extra look inflates the maximum size a little but adds a chance to stop early.'],
+      t1: ['Information fraction', 'The share of the final information available at the interim: participants with an outcome for a mean comparison, or events for a survival endpoint. 0.5 means halfway.'],
+      t2: ['Second interim', 'Used only with three looks. It must come at least 5% of the information after the first interim.'],
+      spending: ['Spending functions', 'O’Brien–Fleming type spends almost nothing early, so early stops need overwhelming evidence and the final bound stays close to the fixed design. Pocock type spends evenly and stops earlier more often, at the price of a larger maximum. The power family (ρ) and Hwang–Shih–DeCani (γ) interpolate: ρ = 3 or γ = −4 behave like O’Brien–Fleming, ρ = 1 or γ = 1 like Pocock.'],
+      spendingParameter: ['Spending parameter', 'Only for the power family (ρ, 0.1 to 10) and Hwang–Shih–DeCani (γ, −40 to 40). Larger ρ or more negative γ spends less alpha early.'],
+      futilitySpending: ['Futility spending', 'How the type II error is spent on futility stops. Non-binding: the efficacy bounds are computed as if futility stops might be ignored, which is the regulatory default.'],
+      futilityParameter: ['Futility parameter', 'ρ or γ for the futility family. γ = −2 is a common, moderately aggressive choice.'],
+      effect: ['Standardized effect', 'Mean difference ÷ SD for two equal groups with a normal outcome. The fixed-design size uses the normal approximation 4(z_α + z_β)²/d².'],
+      hazardRatio: ['Hazard ratio', 'For an event-driven design with equal allocation. The size is a number of events: 4(z_α + z_β)²/ln(HR)² without interim looks.'],
+      fixedSize: ['Fixed-design size', 'Bring the answer from any other fighter: the size that gives your target power with a single analysis. Bell inflates it for the interim looks. It is assumed to have exactly the target power.'],
+    },
+    assumptions: 'One-sided testing of a normally distributed statistic whose information grows in proportion to the sample size or event count (canonical joint distribution; Jennison and Turnbull 2000). Effect-size mode plans two equal groups with a known-variance normal approximation; hazard-ratio mode plans events for a log-rank test with equal allocation (Schoenfeld). Fixed mode takes a fixed-design size from another fighter and assumes it has exactly the target power. Information fractions are planned; analyses that happen at other times need the boundaries recomputed by the same spending function.',
+  };
+  const defaultsSequential = { mode: 'effect', effect: '.5', hazardRatio: '.7', fixedSize: '128', looks: '3', t1: '.5', t2: '.75', spending: 'obf', spendingParameter: '-4', alpha: '.025', power: '.9' };
+  register({
+    ...sequentialBase,
+    id: 'gsd-efficacy',
+    name: 'Group sequential design · efficacy stopping',
+    defaults: defaultsSequential,
+    designFields: ['looks', 't1', 't2', 'spending', 'spendingParameter'],
+    design: raw => sequentialBase.design(raw, false),
+    notice: 'Interim looks can stop the trial early for efficacy. Boundaries come from an alpha-spending function so the overall one-sided error stays at α.',
+    calculationNote: 'Efficacy bounds from Lan–DeMets alpha spending; power and boundaries by recursive numerical integration over the joint normal distribution of the sequential Z statistics (Jennison and Turnbull, chapter 19). Matches R mvtnorm references to 1e-6.',
+  });
+  register({
+    ...sequentialBase,
+    id: 'gsd-futility',
+    name: 'Group sequential design · efficacy and non-binding futility',
+    defaults: { ...defaultsSequential, futilitySpending: 'hsd', futilityParameter: '-2' },
+    designFields: ['looks', 't1', 't2', 'spending', 'spendingParameter', 'futilitySpending', 'futilityParameter'],
+    design: raw => sequentialBase.design(raw, true),
+    notice: 'NON-BINDING futility: efficacy bounds ignore the futility stops, so the trial keeps its α even if a futility stop is overruled.',
+    calculationNote: 'Efficacy bounds from alpha spending, ignoring futility. Futility bounds from beta spending under the alternative, the final one equal to the final efficacy bound; the drift is chosen so the total type II error with futility obeyed equals β. Recursive numerical integration; matches R mvtnorm references to 1e-6.',
+  });
+
   if (typeof module !== 'undefined') module.exports = methods;
   else globalThis.StatFighter.methods = methods;
 }

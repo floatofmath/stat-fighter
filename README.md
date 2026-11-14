@@ -4,7 +4,7 @@ An arcade-themed sample size and power calculator that runs entirely in the brow
 
 ## Methods
 
-Eighteen fighters live in four districts, and every one of them faces The Null, the CPU opponent. Each one plans one method:
+Twenty-two fighters live in four districts, and every one of them faces The Null, the CPU opponent. Each one plans one method:
 
 | District | Fighter | Method |
 | --- | --- | --- |
@@ -21,11 +21,15 @@ Eighteen fighters live in four districts, and every one of them faces The Null, 
 | | Rook | Mann–Whitney (approximate) |
 | | Echo | Wilcoxon signed-rank (approximate) |
 | Survival Coast | Harbor | Log-rank event planning, with an optional enrolment step (approximate) |
+| | Jab | Vaccine efficacy from case counts, exact conditional binomial test, with a cases-to-participants step |
+| | Scatter | Negative binomial rate ratio for recurrent events (approximate) |
 | Boundary Citadel | Aegis | Bonferroni family planning |
 | | Bastion | Non-inferiority, parallel t-test |
 | | Tess | TOST equivalence, parallel t-tests |
 | | Ratio | Log-normal TOST, parallel bioequivalence |
 | | Switch | 2×2 crossover TOST, average bioequivalence |
+| | Bell | Group sequential design with efficacy stopping (two or three looks, four spending functions) |
+| | Towel | Group sequential design with efficacy and non-binding futility stopping |
 
 A future fighter can be marked `artPending: true` in `journey/content.js`: it stays out of the menus, and its direct link opens it with a placeholder silhouette.
 
@@ -33,7 +37,7 @@ Methods marked *approximate* use explicitly stated large-sample models; each fig
 
 ## The interface
 
-Title → World → District select → Challenge card → Arena. Tap a district on the map to read its briefing and tap it again to enter. The select screen works like a fighting-game character select: arrow keys move the cursor, Enter or a second tap picks. Each fighter's challenge card shows the test, five stat bars and The Null, the CPU opponent. In the arena the fighter's bar is power, The Null's bar is the type II error that remains, and the clock shows alpha. The fight sequence is skippable, honours reduced motion and the Effects option, and never delays the result. The hi-score table keeps your last ten plans in this browser only.
+Title → World → District select → Challenge card → Arena. Tap a district on the map to read its briefing and tap it again to enter. The select screen works like a fighting-game character select: arrow keys move the cursor, Enter or a second tap picks. Each fighter's challenge card shows the test, five stat bars and The Null, the CPU opponent. In the arena the fighter's bar is power, The Null's bar is the type II error that remains, and the clock shows alpha. Group sequential designs fight one round per look, each with its efficacy boundary, and show a per-look boundary table. The fight sequence is skippable, honours reduced motion and the Effects option, and never delays the result. The hi-score table keeps your last ten plans in this browser only.
 
 Portraits come in three sizes: full size in `assets/` (precached for offline use), half size in `assets/web/` (what pages request), and 192 × 288 thumbnails in `assets/thumb/` for tiles and avatars. After adding or replacing a portrait, run `scripts/make-thumbs.sh` (needs ImageMagick) and add the new files to `sw.js`.
 

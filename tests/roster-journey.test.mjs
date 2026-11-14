@@ -10,8 +10,8 @@ for(const m of Object.values(methods)) {
   for(const mode of m.modes){
    const raw={...m.defaults,mode:mode.id},copy={...raw};const answer=solve(m,raw);
    assert.deepEqual(raw,copy);assert.ok(answer.power>=Number(raw.power));
-   assert.equal(answer.total,solve(m,m.defaults).total);
-   assert.ok(Math.abs(answer.power-solve(m,m.defaults).power)<2e-9);
+   // Modes normally describe the same design; a method may declare modes that are different inputs (Bell, Towel).
+   if(!m.distinctModes){assert.equal(answer.total,solve(m,m.defaults).total);assert.ok(Math.abs(answer.power-solve(m,m.defaults).power)<2e-9);}
    for(const id of [...m.designFields,...m.inputFields(raw),...m.tuningFields])assert.ok(m.fields[id],id);
   }
  });

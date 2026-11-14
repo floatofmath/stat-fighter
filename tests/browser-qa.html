@@ -28,12 +28,12 @@ document.querySelector('#run').onclick=async()=>{
  const pin=$('.j-pin');pin.focus();key(pin,'ArrowRight');check(doc().activeElement===all('.j-pin')[1],'arrow navigation moves map focus');
  $('.j-pin[data-region="survival"]').click();await delay(60);check(win().location.hash==='#world'&&$('.j-region-detail h2').textContent==='Survival Coast','first click selects a district and shows its briefing');
  check(doc().activeElement===$('.j-pin[data-region="survival"]'),'selected pin keeps focus');
- check(all('.j-brief-roster a').length===1,'briefing shows the district fighters as tiles');
+ check(all('.j-brief-roster a').length===3,'briefing shows the district fighters as tiles');
  $('.j-pin[data-region="survival"]').click();await delay(120);check(win().location.hash==='#continent?region=survival','second click on the selected pin enters the district');
  await go('#world');$('.j-region-list [data-region="boundary"]').click();await delay(60);check(win().location.hash==='#world','district list: first click selects');$('.j-region-list [data-region="boundary"]').click();await delay(120);check(win().location.hash==='#continent?region=boundary','district list: second click enters');
  await go('#world');$('.j-pin[data-region="frequency"]').click();await delay(60);$('.j-brief-roster a').click();await delay(120);check($('#main-heading').textContent==='TWO PROPORTIONS','a briefing tile opens that fighter’s challenge card');
  // ---- District select ----
- for(const [region,expected] of [['means','two-sample,paired,one-sample,anova,ancova,correlation,regression'],['frequency','proportions,chi-square,ni-proportions,mann-whitney,signed-rank'],['survival','log-rank'],['boundary','bonferroni,non-inferiority,tost,tost-lognormal,tost-crossover']]){
+ for(const [region,expected] of [['means','two-sample,paired,one-sample,anova,ancova,correlation,regression'],['frequency','proportions,chi-square,ni-proportions,mann-whitney,signed-rank'],['survival','log-rank,vaccine-efficacy,negative-binomial'],['boundary','bonferroni,non-inferiority,tost,tost-lognormal,tost-crossover,gsd-efficacy,gsd-futility']]){
   await go('#continent?region='+region);check(tiles().join()===expected,region+' select grid lists its fighters with art');
  }
  for(const [legacy,target] of [['association','means'],['ranks','frequency'],['multiplicity','boundary']]){await go('#continent?region='+legacy);check($('.j-bottom').textContent.includes(win().StatFighter.content.regions.find(r=>r.id===target).name.toUpperCase()),'retired district link '+legacy+' opens '+target);}
@@ -83,22 +83,29 @@ document.querySelector('#run').onclick=async()=>{
  await load('#arena?v=1&test=anova');mode('means');edit('groupMean3','108');edit('groups','2');$('#j-groups').dispatchEvent(new (win().Event)('change',{bubbles:true}));check(!$('#j-groupMean3'),'Nova removes inactive group control');edit('groups','3');$('#j-groups').dispatchEvent(new (win().Event)('change',{bubbles:true}));check($('#j-groupMean3').value==='108','Nova restores hidden group draft');
  edit('groups','20');$('#j-groups').dispatchEvent(new (win().Event)('change',{bubbles:true}));check(all('[name^="groupMean"]').length===20,'Nova supports 20 editable means');submit();check(!!$('.j-score'),'Nova calculates 20 groups');
  await load('#arena?v=1&test=two-sample');mode('effect');edit('effect','0.7');await go('#arena?v=1&test=paired');check($('#j-effect').value==='0.5','fighter drafts do not leak');await go('#arena?test=two-sample');check($('#j-effect').value==='0.7','returning restores original fighter draft');
- await load('#arena?test=unavailable&run=1');check(tiles().length===18&&!$('.j-score'),'unknown method leads to Quick Select');
+ await load('#arena?test=unavailable&run=1');check(tiles().length===22&&!$('.j-score'),'unknown method leads to Quick Select');
+ // ---- Last wave: cases, rates, looks ----
+ await load('#arena?v=1&test=vaccine-efficacy&run=1');check(score()==='160'&&$('.j-score').textContent.includes('REQUIRED CASES'),'Jab plans cases');check($('#j-extras-out').textContent.includes('Participants to enrol')&&!$('#j-dropout'),'Jab converts cases to participants instead of a dropout line');
+ const enrol=$('#j-extras-out').textContent;edit('attackRate','.04');check($('#j-extras-out').textContent!==enrol&&score()==='160','attack rate changes enrolment, not the case count');
+ await load('#arena?v=1&test=negative-binomial&nullRatio=1.15&run=1');check(!!score()&&$('.j-derived').textContent.includes('1.15'),'Scatter plans non-inferiority with a null rate ratio');
+ await load('#arena?v=1&test=gsd-futility&run=1');check(score()==='182','Towel default maximum size');check(all('.j-table.j-wide tbody tr').length===3&&$('.j-table.j-wide').textContent.includes('Futility'),'Towel shows a per-look table with futility bounds');check($('.j-receipt').textContent.includes('Fixed-design size'),'GSD receipt records the fixed-design size');
+ edit('looks','2');$('#j-looks').dispatchEvent(new (win().Event)('change',{bubbles:true}));submit();check(all('.j-table.j-wide tbody tr').length===2,'two-look design has two rows');
+ await setEffects(true);await load('#arena?v=1&test=gsd-efficacy');submit();await wait(()=>$('.j-ko').textContent.startsWith('ROUND 1')).catch(()=>{});check($('.j-ko').textContent.startsWith('ROUND 1')&&$('.j-ko').textContent.includes('Z ≥'),'Bell fights one round per look with its boundary');doc().dispatchEvent(new (win().KeyboardEvent)('keydown',{key:'x',bubbles:true}));await setEffects(false);
  // ---- Every fighter: default, alternate mode, help, links ----
- const heroes=[['two-sample',128,'means'],['paired',34,'differences'],['one-sample',34,'means'],['anova',159,'means'],['correlation',85,'covariance'],['regression',77,'r-squared'],['mann-whitney',66,'probability'],['signed-rank',66,'normal-shift'],['proportions',776,'proportions'],['chi-square',197,'table'],['log-rank',247,'hazard-ratio'],['bonferroni',192,'means'],['non-inferiority',128,'means'],['tost',140,'means'],['tost-lognormal',76,'log'],['ancova',98,'means'],['tost-crossover',40,'log'],['ni-proportions',510,'difference']];
+ const heroes=[['two-sample',128,'means'],['paired',34,'differences'],['one-sample',34,'means'],['anova',159,'means'],['correlation',85,'covariance'],['regression',77,'r-squared'],['mann-whitney',66,'probability'],['signed-rank',66,'normal-shift'],['proportions',776,'proportions'],['chi-square',197,'table'],['log-rank',247,'hazard-ratio'],['bonferroni',192,'means'],['non-inferiority',128,'means'],['tost',140,'means'],['tost-lognormal',76,'log'],['ancova',98,'means'],['tost-crossover',40,'log'],['ni-proportions',510,'difference'],['vaccine-efficacy',160,'risk'],['negative-binomial',996,'rates'],['gsd-efficacy',172,'hazard'],['gsd-futility',182,'fixed']];
  const pending=[];
  for(const [id,total,otherMode] of heroes){
   await load('#arena?v=1&test='+id);submit();check(score()===String(total),id+' default result');
   check($('.j-score').textContent.includes(win().StatFighter.methods[id].totalLabel),id+' displays correct unit label');
-  mode(otherMode);submit();check(score()===String(total),id+' alternate mode agrees');
+  const distinct=win().StatFighter.methods[id].distinctModes;mode(otherMode);submit();const otherTotal=score();check(distinct?!!otherTotal&&$('#j-error').hidden:otherTotal===String(total),id+(distinct?' alternate input calculates':' alternate mode agrees'));
   await delay(80);check(!!$('#j-curve .j-whatif'),id+' power curve and what-if table');
   const method=win().StatFighter.methods[id],field=method.inputFields({...method.defaults,mode:otherMode}).find(k=>k!=='sd');
   const before=$('#j-'+field).value;$('[data-help="'+field+'"]').click();check($('#journey-help').open,id+' contextual input help');$('#journey-help').close();await wait(()=>!$('#journey-help').open);check($('#j-'+field).value===before,id+' help preserves value');
-  const resultURL=win().location.hash;await load(resultURL);check(score()===String(total),id+' alternate-input URL restores result');
+  const resultURL=win().location.hash;await load(resultURL);check(score()===otherTotal,id+' alternate-input URL restores result');
   await load('#results?test='+id);check(score()===String(total),id+' legacy result migrates');
   await go('#profile?test='+id);check(!!$('.j-card')&&$('.j-nameplate h2').textContent===win().StatFighter.content.fighters[id].name,id+' challenge card');
   if(pending.includes(id)){check(!!$('.j-card-portrait.j-silhouette'),id+' shows a silhouette until its art arrives');await go('#select');check(!tiles().includes(id),id+' stays out of Quick Select until its art arrives');}
-  else{await go('#select');check(tiles().length===18,'Quick Select lists all eighteen fighters');$('[data-tile="'+id+'"]').click();$('[data-tile="'+id+'"]').click();await delay(120);check($('.j-nameplate h2').textContent===win().StatFighter.content.fighters[id].name,id+' card reachable from Quick Select');}
+  else{await go('#select');check(tiles().length===22,'Quick Select lists all twenty-two fighters');$('[data-tile="'+id+'"]').click();$('[data-tile="'+id+'"]').click();await delay(120);check($('.j-nameplate h2').textContent===win().StatFighter.content.fighters[id].name,id+' card reachable from Quick Select');}
  }
  // ---- Hi-score table ----
  await load('#scores');const rows=all('.j-score-table tbody tr').length;check(rows===10,'hi-score table keeps the last ten plans');check($('.j-hud-hi b').textContent!=='000000','HI-SCORE shows the largest saved plan');
@@ -114,13 +121,13 @@ document.querySelector('#run').onclick=async()=>{
    const images=all('#screen img');await Promise.all(images.map(img=>{img.loading='eager';return Promise.race([img.decode().catch(()=>{}),delay(2000)])}));check(images.every(img=>img.naturalWidth>0),width+'px '+route+' art loaded');
    const bad=all('#screen a,#screen button,#screen input[type=number],#screen select,#screen label span').filter(el=>{const r=el.getBoundingClientRect();return r.width>0&&r.height>0&&(r.right>width+1||r.left < -1)});check(!bad.length,width+'px '+route+' controls stay in viewport'+(bad.length?': '+bad.map(e=>e.textContent).join(','):''));
   }
-  if(width<=390){await go('#continent?region=means');const last=all('[data-tile]').at(-1).getBoundingClientRect();check(all('[data-tile]').length===7&&last.bottom<=844,width+'px: the seven-fighter district fits without scrolling');}
+  if(width<=390)for(const region of ['means','boundary']){await go('#continent?region='+region);const last=all('[data-tile]').at(-1).getBoundingClientRect();check(all('[data-tile]').length===7&&last.bottom<=844,width+'px: seven-fighter '+region+' fits without scrolling');}
  }
  frame.width=390;await go('#arena?v=1&test=two-sample&mode=means&run=1');
  if(location.protocol!=='file:'&&navigator.serviceWorker){
   const registration=await win().navigator.serviceWorker.ready;check(!!registration.active,'service worker active');
   const names=await caches.keys();const current=names.find(n=>n.startsWith('stat-fighter-'+registration.scope+'-'));check(!!current,'scope-specific offline cache exists');
-  const cache=await caches.open(current);const entries=await cache.keys();check(entries.length>=60,'complete offline app and journey art cached ('+entries.length+' files)');
+  const cache=await caches.open(current);const entries=await cache.keys();check(entries.length>=91,'complete offline app and journey art cached ('+entries.length+' files)');
   document.querySelector('#summary').dataset.cache=current;
  }
  log.textContent+='DONE '+count+' checks passed.\n';log.className='pass';document.querySelector('#summary').textContent='DONE: '+count+' checks passed.';

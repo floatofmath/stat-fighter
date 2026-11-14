@@ -1,0 +1,15 @@
+R version 4.6.0 (2026-04-24)
+stats 4.6.0 / mvtnorm 1.3.7 / MASS 7.3.65
+Generated: 2026-11-14
+Generator tests/reference/generate-sequential.R; no JavaScript.
+vaccine.csv 43 cases; negative-binomial.csv 146; group-sequential.csv 51.
+Jab: exact conditional binomial test (Chan and Bohidar 1998 convention). pi = r(1-VE)/(r(1-VE)+1); reject when vaccine cases <= c, c = largest count with pbinom(c, T, pi0) <= alpha.
+Jab: total = smallest T after which power stays >= target for the next 100 case totals; first = plain smallest T reaching the target.
+Scatter: Wald test on log rate ratio with variance at the planned rates (Zhu and Lakatos 2014 method 1; Keene et al. 2007); one-sided H0 RR >= RR0.
+Scatter simulation spot-checks (glm.nb Wald test):
+mu0=1.0 RR=0.70 k=0.5 t=1: n=212/group, approximation 0.8009, glm.nb Wald simulation 0.8070 (2000 reps)
+mu0=2.0 RR=0.80 k=0.4 t=1: n=304/group, approximation 0.8007, glm.nb Wald simulation 0.8010 (2000 reps)
+Bell/Towel: one-sided efficacy bounds from Lan-DeMets alpha spending (OBF-type, Pocock-type), Kim-DeMets power (rho), Hwang-Shih-DeCani (gamma); non-binding futility from beta spending at the interims (capped at the efficacy bound), final futility bound = final efficacy bound, drift chosen so the total type II error with binding futility equals beta.
+Multivariate normal probabilities by mvtnorm::pmvnorm, algorithm Miwa(steps = 4096); roots by uniroot tol 1e-13.
+Sanity: OBF-type, three equally spaced looks, one-sided alpha 0.025: bounds 3.7103 2.5114 1.9930 (published gsDesign values 3.7103, 2.5114, 1.9930).
+Effect-size example sizes: N fixed = 4 (z_alpha + z_beta)^2 / d^2, N max = 2 ceil(inflation N fixed / 2); achieved power at N max with the designed bounds.

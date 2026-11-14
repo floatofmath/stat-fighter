@@ -1,0 +1,15 @@
+R version 4.6.0 (2026-04-24)
+stats 4.6.0
+Generated: 2026-11-14
+Generator tests/reference/generate-arcade.R; base R only, no JavaScript.
+crossover.csv 131 cases; ancova.csv 147; welch.csv 146; ni-proportions.csv 322.
+Crossover TOST (Switch): 2x2 balanced sequences, total N = 2m, df = N - 2, se = sqrt(log(1 + CV^2)) * sqrt(2 / N); joint power by integrate() over dchisq, as in generate-equivalence.R.
+PowerTOST documentation example sampleN.TOST(CV = 0.3, theta0 = 0.95, design = "2x2"): N 40, power 0.815845 (PowerTOST not installed; value from its manual).
+ANCOVA (Anchor): noncentral t, df = N - 2 - q, ncp = |d| / sqrt(1 - R^2) / sqrt(1/n1 + 1/n2); approximate (ignores the variance of the estimated covariate slope).
+Welch (Maverick): noncentral t with Satterthwaite df from population SDs, ncp = |delta| / sqrt(sd1^2/n1 + sd2^2/n2); approximate.
+Farrington-Manning (Parry): restricted MLE by uniroot on the binomial score equation; power = pnorm((s(p1 - p2 - delta0) - z_alpha sqrt(V0)) / sqrt(V1)); approximate.
+Allocation n2 = max(2, floor(n1 * ratio + 0.5)); cap 1,000,000 total; cases over the cap are excluded.
+ANCOVA simulation spot-checks (lm with one baseline covariate):
+d=0.5 rho=0.5 n=48/group: approximation 0.7993, simulation 0.7924 (20000 reps)
+d=0.5 rho=0.7 n=33/group: approximation 0.7997, simulation 0.7956 (20000 reps)
+d=0.8 rho=0.3 n=20/group: approximation 0.7332, simulation 0.7255 (20000 reps)

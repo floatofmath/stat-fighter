@@ -34,3 +34,13 @@ Correlation follows the explicitly approximate bias-corrected Fisher-z / central
 ## Non-inferiority and equivalence
 
 `Rscript tests/reference/generate-equivalence.R` regenerates 422 parallel-group NI/TOST/lognormal TOST cases and provenance. Base R qt/pt evaluates NI; integrate() independently computes the joint conditional-normal interval probability against dchisq for TOST. No JavaScript is used. Selected balanced integer n, achieved power, and predecessor n are verified to2e-9; the direct-variance R integration uses a different integration variable from the JS log-variance implementation. Small-N, large-N, asymmetric bounds, alpha, target, CV, ratios and both NI directions are covered. The published PowerTOST original-scale parallel example agrees (N48,power.815435 rounded); PowerTOST was not installed. Full definitions, sources and scope are in EQUIVALENCE.md / EQUIVALENCE-REVIEW.md.
+
+
+## Arcade staples: Switch, Anchor, Welch and Parry
+
+`Rscript tests/reference/generate-arcade.R` regenerates `crossover.csv` (131 cases), `ancova.csv` (147), `welch.csv` (146), `ni-proportions.csv` (322) and `arcade-provenance.txt`, with base R only. Node compares the selected integer size, achieved power and predecessor power within 2e-9 (`tests/arcade.test.mjs`).
+
+- **Switch** (2×2 crossover TOST): the same conditional-normal / chi-square integration as the parallel TOST generator, with total N = 2m, df = N − 2 and se = σw√(2/N). It reproduces PowerTOST's documented example (CV 0.30, GMR 0.95: N 40, power 0.815845). PowerTOST itself was not installed.
+- **Anchor** (ANCOVA): noncentral t with df = N − 2 − q and the residual SD reduced by √(1 − ρ²). This is the usual approximation; it ignores the variance of the estimated covariate slope. Three R simulations recorded in the provenance file put it about half a percentage point of power above the simulated `lm` power at 20–50 per group.
+- **Welch** (Maverick's unequal-variance mode): noncentral t with Satterthwaite df from the planning SDs. With equal SDs and groups it reproduces the pooled result exactly.
+- **Parry** (Farrington–Manning): R finds the restricted maximum-likelihood proportions with `uniroot` on the score equation; JavaScript bisects the same equation. Neither uses the published closed-form cubic. gsDesign was not installed, so there is no package cross-check yet.

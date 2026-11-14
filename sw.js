@@ -1,11 +1,12 @@
-const version = 'v18';
+const version = 'v20';
 const cachePrefix = `stat-fighter-${self.registration.scope}-`;
 const cacheName = `${cachePrefix}${version}`;
 // Pages request the half-size copies in assets/web/. Only the full-size originals in assets/ are
 // precached; once they are, every assets/web/<file> request is answered with assets/<file>.
 const webTier = new URL('assets/web/', self.registration.scope);
 const files = [
-  './journey/methods.js', './journey/content.js', './journey/journey.js', './journey/journey.css',
+  './journey/methods.js', './journey/content.js', './journey/core.js', './journey/journey.js', './journey/journey.css', './journey/arcade.css',
+  './journey/screens/title.js', './journey/screens/world.js', './journey/screens/select.js', './journey/screens/card.js', './journey/screens/arena.js', './journey/screens/scores.js',
   './assets/fonts/PressStart2P-Regular.ttf', './assets/maverick-arcade-v2.webp', './assets/earth-world-v1.webp', './assets/sunset-airfield-v1.webp',
   './assets/mirror-arcade-v2.webp', './assets/mirror-stage-v1.webp', './assets/iwan-arcade-v1.webp', './assets/iwan-stage-v1.webp', './assets/nova-arcade-v1.webp', './assets/nova-stage-v1.webp',
   './assets/volt-arcade-v1.webp', './assets/volt-stage-v1.webp', './assets/vector-arcade-v1.webp', './assets/vector-stage-v1.webp',
@@ -18,6 +19,10 @@ const files = [
   './assets/bastion-arcade-v1.webp', './assets/bastion-stage-v1.webp',
   './assets/tess-arcade-v1.webp', './assets/tess-stage-v1.webp',
   './assets/ratio-arcade-v1.webp', './assets/ratio-stage-v1.webp',
+  './assets/null-arcade-v1.webp',
+  './assets/anchor-arcade-v1.webp', './assets/anchor-stage-v1.webp',
+  './assets/switch-arcade-v1.webp', './assets/switch-stage-v1.webp',
+  './assets/parry-arcade-v1.webp', './assets/parry-stage-v1.webp',
   './index.html', './style.css', './app.js', './stats.js', './manifest.webmanifest',
   './assets/icon-192.png', './assets/icon-512.png', './assets/icon-maskable.png', './assets/apple-touch-icon.png',
 ];

@@ -485,8 +485,13 @@
     const {n,effect,alpha}=p;
     if (!Number.isInteger(n) || n < 2 || n*2 > limits.total) throw new RangeError('Parallel groups need a whole size of at least 2 each, up to 1,000,000 total.');
     if (id === 'non-inferiority') return tPowerCore('two-sample',{n,n2:n,alpha,effect:p.margin+p.direction*effect,alternative:'greater'});
-    const df=2*n-2, se=Math.sqrt(2/n), quadrature=chiSquareQuadrature(df), critical=criticalT(alpha,quadrature);
-    const a=(effect-p.lower)/se,b=(p.upper-effect)/se, shape=df/2, scale=Math.sqrt(shape);
+    const df=2*n-2, achieved=tostJointPower(effect,p.lower,p.upper,Math.sqrt(2/n),df,alpha);
+    return {n,n2:n,total:2*n,df,power:achieved,confidence:1-2*alpha};
+  }
+  // Joint TOST power for a standardized difference with standard error se and df error degrees of freedom.
+  function tostJointPower(effect,lower,upper,se,df,alpha) {
+    const quadrature=chiSquareQuadrature(df), critical=criticalT(alpha,quadrature);
+    const a=(effect-lower)/se,b=(upper-effect)/se, shape=df/2, scale=Math.sqrt(shape);
     // Both tests share their estimated variance. Condition on that variance and integrate
     // the interval event jointly; adding marginal noncentral-t powers is not exact TOST.
     const upperZ=Math.min(quadrature.hi,2*scale*Math.log((a+b)/(2*critical)));
@@ -495,15 +500,178 @@
       const conditional=Math.max(0,normalTail(critical*s-b)-normalTail(a-critical*s));
       return conditional*Math.exp(shape*(logRatio-Math.expm1(logRatio)));
     },quadrature.lo,upperZ);
-    const achieved=Math.max(0,Math.min(1,integral/quadrature.normalizer));
-    return {n,n2:n,total:2*n,df,power:achieved,confidence:1-2*alpha};
+    return Math.max(0,Math.min(1,integral/quadrature.normalizer));
   }
   function marginSampleSize(id,p) {
     checkMarginDesign(id,p); checkedNumber('power',p.power,'Target power');
     return firstSampleSize(p.power,limits.total/2,n=>marginPowerAt(id,{...p,n}));
   }
 
-  const stats = { version: '4', marginSampleSize, marginPowerAt, normalCdf: x => normalTail(-x), expansionSampleSize, expansionPowerAt, limits, sampleSize, anovaSampleSize, tPowerAt, correlationSampleSize, correlationPowerAt, regressionSampleSize, regressionPowerAt };
+  // ---- Arcade-interface additions. None of the functions above changes its numbers. ----
+
+  // Largest first-group size whose allocation stays within the total cap.
+  function allocationMax(secondGroup) {
+    let lo = 2, max = limits.total;
+    while (lo < max) {
+      const mid = Math.ceil((lo + max) / 2);
+      if (mid + secondGroup(mid) > limits.total) max = mid - 1;
+      else lo = mid;
+    }
+    return max;
+  }
+  const allocationRule = ratio => n => Math.max(2, Math.round(n * ratio));
+  function checkDirection(effect, alternative) {
+    if (!alternatives.has(alternative)) throw new RangeError('Choose an alternative hypothesis.');
+    if ((alternative === 'greater' && effect < 0) || (alternative === 'less' && effect > 0)) throw new RangeError('The effect size sign must match the direction of the alternative.');
+  }
+  // Shared noncentral-t rejection probability with any positive (also fractional) df.
+  function tRejection(df, ncp, alpha, alternative) {
+    const quadrature = chiSquareQuadrature(df), twoSided = alternative === 'two-sided';
+    const achieved = rejectionPower(criticalT(twoSided ? alpha / 2 : alpha, quadrature), ncp, twoSided, quadrature);
+    if (!Number.isFinite(achieved)) throw new Error('Power calculation failed.');
+    return Math.max(0, Math.min(1, achieved));
+  }
+
+  // Fixed-size evaluator for Nova, used by the power curve.
+  function anovaPowerAt({ groups, effect, alpha, n }) {
+    checkedNumber('groups', groups, 'Number of groups');
+    if (!Number.isInteger(n) || n < 2 || n * groups > limits.total) throw new RangeError('Group size must be a whole number of at least two.');
+    const total = n * groups;
+    return { n, total, power: fRejectionPower(groups - 1, total - groups, total * effect ** 2, alpha) };
+  }
+
+  // Maverick's Welch mode: noncentral t with Satterthwaite df from the planning SDs.
+  // effect = (mean1 − mean2) / SD1; sdRatio = SD2 / SD1.
+  function checkWelch({ alpha, effect, sdRatio, alternative }) {
+    checkedNumber('alpha', alpha, 'Alpha');
+    checkedNumber('effect', Number.isFinite(effect) ? Math.abs(effect) : NaN, 'Absolute standardized difference');
+    if (!Number.isFinite(sdRatio) || sdRatio < 0.01 || sdRatio > 100) throw new RangeError('The SD ratio must be between 0.01 and 100.');
+    checkDirection(effect, alternative);
+  }
+  function welchPowerAt(p) {
+    checkWelch(p);
+    const { n, n2 } = p;
+    if (!Number.isInteger(n) || !Number.isInteger(n2) || n < 2 || n2 < 2 || n + n2 > limits.total) throw new RangeError('Sample sizes must be whole numbers of at least two.');
+    const a = 1 / n, b = p.sdRatio ** 2 / n2, df = (a + b) ** 2 / (a * a / (n - 1) + b * b / (n2 - 1));
+    return { n, n2, total: n + n2, df, power: tRejection(df, Math.abs(p.effect) / Math.sqrt(a + b), p.alpha, p.alternative) };
+  }
+  function welchSampleSize(p) {
+    checkWelch(p); checkedNumber('power', p.power, 'Target power'); checkedNumber('ratio', p.ratio, 'Allocation ratio');
+    const second = allocationRule(p.ratio);
+    return firstSampleSize(p.power, allocationMax(second), n => welchPowerAt({ ...p, n, n2: second(n) }));
+  }
+
+  // Anchor: two-group ANCOVA. Covariates explain R² of the within-group outcome variance; the
+  // residual SD shrinks by √(1 − R²) and each covariate costs one error degree of freedom.
+  function checkAncova({ alpha, effect, alternative, covariates, rSquared }) {
+    checkedNumber('alpha', alpha, 'Alpha');
+    checkedNumber('effect', Number.isFinite(effect) ? Math.abs(effect) : NaN, 'Absolute effect size');
+    checkDirection(effect, alternative);
+    if (!Number.isInteger(covariates) || covariates < 1 || covariates > 10) throw new RangeError('Number of covariates must be a whole number from 1 to 10.');
+    if (!Number.isFinite(rSquared) || rSquared < 0 || rSquared > 0.9801) throw new RangeError('Covariate R² must be between 0 and 0.9801.');
+  }
+  function ancovaPowerAt(p) {
+    checkAncova(p);
+    const { n, n2, covariates } = p, df = n + n2 - 2 - covariates;
+    if (!Number.isInteger(n) || !Number.isInteger(n2) || n < 2 || n2 < 2 || df < 1 || n + n2 > limits.total) throw new RangeError('Groups need at least two each and more participants than model parameters.');
+    const ncp = Math.abs(p.effect) / Math.sqrt(1 - p.rSquared) / Math.sqrt(1 / n + 1 / n2);
+    return { n, n2, total: n + n2, df, power: tRejection(df, ncp, p.alpha, p.alternative) };
+  }
+  function ancovaMinimum(second, covariates) {
+    let n = 2;
+    while (n + second(n) - 2 - covariates < 1) n++;
+    return n;
+  }
+  function ancovaSampleSize(p) {
+    checkAncova(p); checkedNumber('power', p.power, 'Target power'); checkedNumber('ratio', p.ratio, 'Allocation ratio');
+    const second = allocationRule(p.ratio);
+    return firstSampleSize(p.power, allocationMax(second), n => ancovaPowerAt({ ...p, n, n2: second(n) }), ancovaMinimum(second, p.covariates));
+  }
+
+  // Switch: 2×2 crossover TOST on the log scale. effect, lower and upper are in within-subject
+  // log-SD units; n is the size of each sequence (total 2n), df = 2n − 2.
+  function checkCrossover(p) {
+    checkedNumber('alpha', p.alpha, 'Alpha per one-sided test');
+    if (![p.effect, p.lower, p.upper].every(Number.isFinite) || p.lower >= 0 || p.upper <= 0 || p.lower < -1000 || p.upper > 1000) throw new RangeError('Equivalence limits must straddle zero.');
+    if (p.effect - p.lower < .001 || p.upper - p.effect < .001) throw new RangeError('Expected ratio must lie strictly inside both limits.');
+  }
+  function crossoverPowerAt(p) {
+    checkCrossover(p);
+    const { n } = p, total = 2 * n;
+    if (!Number.isInteger(n) || n < 2 || total > limits.total) throw new RangeError('Each sequence needs a whole number of at least two subjects.');
+    const df = total - 2;
+    return { n, n2: n, total, df, power: tostJointPower(p.effect, p.lower, p.upper, Math.sqrt(2 / total), df, p.alpha), confidence: 1 - 2 * p.alpha };
+  }
+  function crossoverSampleSize(p) {
+    checkCrossover(p); checkedNumber('power', p.power, 'Target power');
+    return firstSampleSize(p.power, limits.total / 2, n => crossoverPowerAt({ ...p, n }));
+  }
+
+  // Parry: Farrington–Manning score test for p1 − p2 against a null difference delta0.
+  // The restricted MLE solves the binomial score equation; its log-likelihood is concave on the
+  // feasible interval, so the score is decreasing and bisection is reliable.
+  function restrictedProportions(p1, p2, n1, n2, delta0) {
+    if (delta0 === 0) { const pooled = (n1 * p1 + n2 * p2) / (n1 + n2); return [pooled, pooled]; }
+    const score = x => n1 * (p1 - x) / (x * (1 - x)) + n2 * (p2 - (x - delta0)) / ((x - delta0) * (1 - x + delta0));
+    let lo = Math.max(0, delta0), hi = Math.min(1, 1 + delta0);
+    for (let i = 0; i < 200; i++) {
+      const mid = (lo + hi) / 2;
+      if (mid === lo || mid === hi) break;
+      if (score(mid) > 0) lo = mid; else hi = mid;
+    }
+    const x = (lo + hi) / 2;
+    return [x, x - delta0];
+  }
+  function checkProportionsMargin(p) {
+    checkedNumber('alpha', p.alpha, 'One-sided alpha');
+    if (![p.p1, p.p2].every(v => Number.isFinite(v) && v > 0 && v < 1)) throw new RangeError('Proportions must be strictly between zero and one.');
+    if (![1, -1].includes(p.direction)) throw new RangeError('Choose whether higher or lower proportions are better.');
+    if (!Number.isFinite(p.delta0) || Math.abs(p.delta0) >= 1) throw new RangeError('The null difference must be between −1 and 1.');
+    if (p.direction * (p.p1 - p.p2 - p.delta0) < .001) throw new RangeError('The expected difference must be on the alternative side of the null boundary.');
+  }
+  function proportionsMarginPowerAt(p) {
+    checkProportionsMargin(p);
+    const { n, n2, p1, p2 } = p;
+    if (!Number.isInteger(n) || !Number.isInteger(n2) || n < 2 || n2 < 2 || n + n2 > limits.total) throw new RangeError('Sample sizes must be whole numbers of at least two.');
+    const [x, y] = restrictedProportions(p1, p2, n, n2, p.delta0);
+    const v0 = x * (1 - x) / n + y * (1 - y) / n2, v1 = p1 * (1 - p1) / n + p2 * (1 - p2) / n2;
+    const z = (p.direction * (p1 - p2 - p.delta0) - normalCritical(p.alpha) * Math.sqrt(v0)) / Math.sqrt(v1);
+    return { n, n2, total: n + n2, power: normalTail(-z), restricted: [x, y] };
+  }
+  function proportionsMarginSampleSize(p) {
+    checkProportionsMargin(p); checkedNumber('power', p.power, 'Target power'); checkedNumber('ratio', p.ratio, 'Allocation ratio');
+    const second = allocationRule(p.ratio);
+    return firstSampleSize(p.power, allocationMax(second), n => proportionsMarginPowerAt({ ...p, n, n2: second(n) }));
+  }
+
+  // Scanning solver for saw-toothed power (exact discrete tests). Returns the plain smallest size
+  // reaching the target and the smallest size after which power stays at or above it for the
+  // next `window` sizes (or up to max).
+  function scanSampleSize(power, max, evaluate, minimum = 2, window = 50) {
+    let first = null, stable = null;
+    for (let n = minimum; n <= max; n++) {
+      const result = evaluate(n);
+      if (result.power >= power) {
+        first ??= result;
+        stable ??= result;
+        if (n - stable.n >= window) return { first, stable };
+      } else stable = null;
+    }
+    if (!stable) throw new RangeError('No sample size within the limit reaches the requested power.');
+    return { first, stable };
+  }
+
+  // Harbor's enrolment step: exponential event and dropout times, uniform accrual over `accrual`
+  // and further follow-up `followUp`. Returns the probability that a participant's event is observed.
+  function eventProbability({ hazard, dropoutHazard = 0, accrual, followUp }) {
+    if (![hazard, dropoutHazard, accrual, followUp].every(Number.isFinite) || hazard <= 0 || dropoutHazard < 0 || accrual < 0 || followUp < 0 || accrual + followUp <= 0) throw new RangeError('Enrolment inputs must be finite, with positive hazard and follow-up.');
+    const total = hazard + dropoutHazard;
+    const exposure = accrual === 0 ? -Math.expm1(-total * followUp)
+      : 1 - (Math.exp(-total * followUp) - Math.exp(-total * (accrual + followUp))) / (total * accrual);
+    return hazard / total * exposure;
+  }
+
+  const stats = { version: '5', anovaPowerAt, welchPowerAt, welchSampleSize, ancovaPowerAt, ancovaSampleSize, crossoverPowerAt, crossoverSampleSize, proportionsMarginPowerAt, proportionsMarginSampleSize, restrictedProportions, scanSampleSize, eventProbability, normalCritical, marginSampleSize, marginPowerAt, normalCdf: x => normalTail(-x), expansionSampleSize, expansionPowerAt, limits, sampleSize, anovaSampleSize, tPowerAt, correlationSampleSize, correlationPowerAt, regressionSampleSize, regressionPowerAt };
   if (typeof module === 'undefined') {
     globalThis.StatFighter = { stats };
   } else {

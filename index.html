@@ -12,9 +12,17 @@
   <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
   <link rel="stylesheet" href="./style.css">
   <link rel="stylesheet" href="./journey/journey.css">
+  <link rel="stylesheet" href="./journey/arcade.css">
   <script defer src="./stats.js"></script>
   <script defer src="./journey/methods.js"></script>
   <script defer src="./journey/content.js"></script>
+  <script defer src="./journey/core.js"></script>
+  <script defer src="./journey/screens/title.js"></script>
+  <script defer src="./journey/screens/world.js"></script>
+  <script defer src="./journey/screens/select.js"></script>
+  <script defer src="./journey/screens/card.js"></script>
+  <script defer src="./journey/screens/arena.js"></script>
+  <script defer src="./journey/screens/scores.js"></script>
   <script defer src="./journey/journey.js"></script>
   <script defer src="./app.js"></script>
 </head>
@@ -47,7 +55,8 @@
   <dialog id="about" aria-labelledby="about-title">
     <form method="dialog"><button class="close-button" aria-label="Close about">×</button></form>
     <h2 id="about-title">About Stat Fighter ’89</h2>
-    <p>Plan sample sizes and power for fifteen methods: t-tests, ANOVA, correlation and regression, rank tests, proportions and chi-square, log-rank event counts, Bonferroni families, and non-inferiority and equivalence (TOST) designs. Calculations run on your device.</p>
+    <p>Plan sample sizes and power with arcade fighters: t-tests (pooled or Welch), ANOVA, correlation and regression, rank tests, proportions and chi-square, log-rank event counts with an optional enrolment step, Bonferroni families, and non-inferiority and equivalence (TOST) designs. Calculations run on your device.</p>
+    <p>Your hi-score table and drafts are kept in this browser only. Nothing leaves the device.</p>
     <p>Stat Fighter ’89 is a planning aid. Results depend entirely on the assumptions you enter and on each method’s stated model. It comes with no warranty and is not a substitute for review by a qualified statistician, particularly for clinical, regulatory or bioequivalence studies.</p>
     <div id="install-info">
       <h3>Install for offline play</h3>
@@ -60,14 +69,14 @@
   </dialog>
   <dialog id="journey-help" class="j-dialog" aria-labelledby="journey-help-title">
     <form method="dialog"><button class="close-button" aria-label="Close help">×</button></form>
-    <p class="j-kicker">FIELD MANUAL / STAT FIGHTER ’89</p><h2 id="journey-help-title"></h2><p class="j-dialog-content"></p>
+    <div class="j-dialog-head"><div class="j-dialog-avatar" aria-hidden="true"></div><p class="j-kicker">FIELD MANUAL / STAT FIGHTER ’89</p></div><h2 id="journey-help-title"></h2><p class="j-dialog-content"></p>
     <form method="dialog"><button class="j-button">BACK TO THE GAME ↵</button></form>
   </dialog>
   <dialog id="journey-options" class="j-dialog" aria-labelledby="journey-options-title">
     <form method="dialog"><button class="close-button" aria-label="Close options">×</button></form>
     <p class="j-kicker">CABINET SETTINGS</p><h2 id="journey-options-title">Options</h2>
-    <label><input type="checkbox"> Subtle animation effects</label>
-    <p class="j-small">Your system’s reduced-motion setting is always respected. Sound will join the arcade in a later chapter.</p>
+    <label><input type="checkbox"> Animation effects</label>
+    <p class="j-small">Turns the fight sequence, signal pulses and screen transitions on or off. Results always appear at once, and your system’s reduced-motion setting is always respected. Any key or tap skips a fight. Sound will join the arcade in a later chapter.</p>
     <form method="dialog"><button class="j-button">BACK TO THE GAME ↵</button></form>
   </dialog>
 </body>

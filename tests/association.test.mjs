@@ -61,13 +61,20 @@ test('Earth and all playable districts have complete method/content/art contract
  const tiered=file=>{assert.ok(file.startsWith('./assets/web/'),`${file} uses the web tier`);const full=file.replace('./assets/web/','./assets/');
   assert.ok(existsSync(new URL('../'+full,import.meta.url)),`${full} full-size counterpart exists`);assert.ok(precache.includes(`'${full}'`),`${full} is precached`);};
  tiered(worldMap.image);
+ tiered(sandbox.globalThis.StatFighter.content.cpu.image);
  for(const [id,m]of Object.entries(methods)){
-  const f=fighters[id];assert.ok(f,`${id} fighter`);assert.ok(regions.some(r=>r.id===f.region));
-  for(const file of [f.image,f.stageImage]){assert.ok(existsSync(new URL('../'+file,import.meta.url)),file);tiered(file);}
-  assert.ok(m.solve&&m.normalize&&m.assumptions);
+  const f=fighters[id];assert.ok(f,`${id} fighter`);assert.ok(regions.some(r=>r.id===f.region&&r.roster.includes(id)),`${id} listed in its district roster`);
+  // A fighter whose art has not arrived is hidden; its planned files must not be precached yet.
+  if(f.artPending){for(const file of [f.image,f.stageImage]){assert.ok(file.startsWith('./assets/web/'));assert.ok(!precache.includes(`'${file.replace('./assets/web/','./assets/')}'`),file);}}
+  else for(const file of [f.image,f.stageImage]){assert.ok(existsSync(new URL('../'+file,import.meta.url)),file);tiered(file);}
+  assert.ok(m.solve&&m.normalize&&m.assumptions&&m.powerAt,`${id} method contract`);
+  assert.ok(f.headline&&f.challenge&&/^#[0-9a-f]{6}$/.test(f.accent),`${id} challenge card fields`);
+  for(const key of ['exactness','robustness','efficiency','flexibility']){const [score,reason]=f.stats[key];assert.ok(Number.isInteger(score)&&score>=1&&score<=10&&reason,`${id} ${key}`);}
  }
- assert.equal(Object.values(fighters).filter(f=>f.region==='association').length,2);
- assert.equal(regions.filter(r=>Object.values(fighters).some(f=>f.region===r.id)).length,6);
+ assert.equal(regions.map(r=>r.id).join(),'means,frequency,survival,boundary');
+ assert.equal(regions.map(r=>r.roster.length).join(),'7,5,1,5');
+ for(const r of regions)for(const id of r.roster)assert.equal(fighters[id].region,r.id,`${id} region`);
+ assert.equal(JSON.stringify(sandbox.globalThis.StatFighter.content.regionAliases),JSON.stringify({association:'means',ranks:'frequency',multiplicity:'boundary'}));
  // 44px map controls must remain separate at the narrowest supported map width.
  for(let i=0;i<regions.length;i++)for(let j=i+1;j<regions.length;j++){
   const a=regions[i],b=regions[j];assert.ok(Math.abs(a.x-b.x)*266/100>=44||Math.abs(a.y-b.y)*133/100>=44,`${a.id}/${b.id} overlap at 320px`);

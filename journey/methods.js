@@ -50,7 +50,7 @@
         try {
           const effect = this.effect(raw, this.design(raw));
           if (!Number.isFinite(effect)) return 'Check the effect inputs.';
-          return `DERIVED ${this.effectSymbol} = ${Number(effect.toPrecision(7))} · ${this.formula}`;
+          return `DERIVED ${this.effectSymbol} = ${Number(effect.toPrecision(7))} · ${this.formulaFor?.(raw) ?? this.formula}`;
         } catch (error) { return error.message; }
       },
       inputFields(raw) {
@@ -73,6 +73,8 @@
     };
     if (spec.derive) method.derive = spec.derive;
     if (spec.receipt) method.receipt = spec.receipt;
+    // Dropout allowance is an optional display-only line on the result; the verified number never changes.
+    if (method.dropout !== false) method.defaults = { ...method.defaults, dropout: '0' };
     methods[method.id] = method;
   }
   const tDefaults = { mode: 'effect', effect: '0.5', alpha: '0.05', power: '0.8', alternative: 'two-sided' };
@@ -80,22 +82,35 @@
     signed: true, effectSymbol: 'd', design: () => ({}),
     fields: { effect: numeric('Effect size · d', 'Signed difference ÷ the appropriate population SD.', { min: -5, max: 5 }) },
     solve: (stats, parameters, id) => stats.sampleSize(id, parameters),
+    powerAt(stats, parameters, n) { return stats.tPowerAt(this.id, { ...parameters, n, n2: 0 }); },
     allocationRule: 'Smallest whole sample size that reaches target power. Complete, analyzable data; no dropout allowance.',
   };
+  const secondGroup = (n, ratio) => Math.max(2, Math.round(n * ratio));
   register({
-    ...tBase, id: 'two-sample', name: 'Pooled two-sample t-test', unit: 'participants', totalLabel: 'TOTAL PARTICIPANTS',
-    defaults: { ...tDefaults, mean1: '105', mean2: '100', sd: '10', ratio: '1' },
-    modes: [{ id: 'effect', label: 'Effect size d', fields: ['effect'] }, { id: 'means', label: 'Means + SD', fields: ['mean1', 'mean2', 'sd'] }],
+    ...tBase, id: 'two-sample', name: 'Two-sample t-test · pooled or Welch', unit: 'participants', totalLabel: 'TOTAL PARTICIPANTS',
+    defaults: { ...tDefaults, mean1: '105', mean2: '100', sd: '10', sd1: '10', sd2: '10', ratio: '1' },
+    modes: [{ id: 'effect', label: 'Effect size d', fields: ['effect'] }, { id: 'means', label: 'Means + SD', fields: ['mean1', 'mean2', 'sd'] }, { id: 'welch', label: 'Means + two SDs · Welch', fields: ['mean1', 'mean2', 'sd1', 'sd2'] }],
     fields: { ...tBase.fields,
       mean1: numeric('Group 1 mean', 'Expected population mean.'), mean2: numeric('Group 2 mean', 'Use the same units as Group 1.'), sd: sdField('Common SD'),
+      sd1: sdField('Group 1 SD', 'Population SD in Group 1.'), sd2: sdField('Group 2 SD', 'Population SD in Group 2; may differ from Group 1.'),
       ratio: numeric('Allocation · n₂ / n₁', 'Group 2 relative to Group 1.', { min: 0.1, max: 10, presets: ['0.5', '1', '2'] }),
     },
     tuningFields: ['alpha', 'power', 'ratio'], effectErrorField: 'mean1', signConvention: 'Group 1 minus Group 2',
-    formula: '(mean₁ − mean₂) / SD', effectHint: 'Two independent groups. One common SD.',
-    effect: raw => raw.mode === 'effect' ? number(raw, 'effect', 'effect size') : (number(raw, 'mean1', 'Group 1 mean') - number(raw, 'mean2', 'Group 2 mean')) / positive(raw, 'sd', 'Common SD'),
+    formula: '(mean₁ − mean₂) / SD', formulaFor: raw => raw.mode === 'welch' ? '(mean₁ − mean₂) / SD₁ · Welch–Satterthwaite df' : '(mean₁ − mean₂) / SD', effectHint: 'Two independent groups. One common SD, or two SDs in Welch mode.',
+    design(raw) {
+      if (raw.mode !== 'welch') return {};
+      const sd1 = positive(raw, 'sd1', 'Group 1 SD'), sd2 = positive(raw, 'sd2', 'Group 2 SD'), sdRatio = sd2 / sd1;
+      if (!Number.isFinite(sdRatio) || sdRatio < 0.01 || sdRatio > 100) fail('sd2', 'The two SDs may differ by at most a factor of 100.');
+      return { welch: true, sdRatio };
+    },
+    effect: raw => raw.mode === 'effect' ? number(raw, 'effect', 'effect size') : (number(raw, 'mean1', 'Group 1 mean') - number(raw, 'mean2', 'Group 2 mean')) / positive(raw, raw.mode === 'welch' ? 'sd1' : 'sd', raw.mode === 'welch' ? 'Group 1 SD' : 'Common SD'),
+    solve: (stats, p) => p.welch ? stats.welchSampleSize(p) : stats.sampleSize('two-sample', p),
+    powerAt: (stats, p, n) => (p.welch ? stats.welchPowerAt : q => stats.tPowerAt('two-sample', q))({ ...p, n, n2: secondGroup(n, p.ratio) }),
     allocations: r => [['Group 1', r.n], ['Group 2', r.n2]],
+    additionalReceipt: (raw, p, r) => p.welch ? [['Variance model', 'Welch–Satterthwaite, unequal SDs · approximate'], ['SD₂ / SD₁', p.sdRatio], ['Welch df at this size', r.df.toFixed(4)]] : [['Variance model', 'Pooled, common SD']],
     allocationRule: 'Smallest integer Group 1 size that reaches target power. Group 2 = max(2, round(Group 1 × ratio)), with half ties rounded up.',
-    assumptions: 'Independent observations and groups, normally distributed outcomes within each group, and a common population SD. This is the pooled-variance Student t-test, not Welch’s test. Results count complete, analyzable participants; dropout is not included.',
+    assumptions: 'Independent observations and groups and normally distributed outcomes within each group. Effect and means modes assume a common population SD and plan the pooled-variance Student t-test. Welch mode plans Welch’s unequal-variance test approximately: a noncentral t with Satterthwaite degrees of freedom computed from your planning SDs. Results count complete, analyzable participants; dropout is not included.',
+    help: { sd1: ['Group SDs for Welch', 'Enter each group’s anticipated population SD in the outcome’s units. Welch mode standardizes by the Group 1 SD and uses Satterthwaite degrees of freedom; with equal SDs and equal groups it reproduces the pooled test.'], sd2: ['Group 2 SD', 'The anticipated population SD in Group 2, in the same units as Group 1. Unequal SDs combined with unequal allocation are exactly where Welch matters.'] },
   });
   // Nova proves that repeatable editors can be declared by a method without router branches.
   const groupDefaults = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`groupMean${i + 1}`, String([95, 100, 105][i] ?? 100)]));
@@ -122,6 +137,7 @@
     formula: 'population SD of group means / within-group SD', effectHint: 'Omnibus F-test. Equal group sizes; no direction or pairwise comparison is implied.', effectErrorField: 'groupMean1',
     allocations: (r, p) => [['Per group', r.n], ['Groups', p.groups]],
     solve: (stats, parameters) => stats.anovaSampleSize(parameters),
+    powerAt: (stats, parameters, n) => stats.anovaPowerAt({ ...parameters, n }),
     allocationRule: 'Smallest whole sample size per group that reaches target power. Every group receives the same number of participants.',
     assumptions: 'Independent observations, normally distributed outcomes within groups, a common within-group population SD, and equal group sizes. Power applies to the overall F-test, not every pairwise comparison. Means use equal weights and a population divisor of k, not k−1. Results count complete, analyzable participants; dropout is not included.',
   });
@@ -160,6 +176,7 @@
     formula: 'covariance(X,Y) / (SDₓ × SDᵧ)', effectHint: 'Independent bivariate observations. Test Pearson correlation against zero.',
     allocations: r => [['Complete X/Y records', r.n]],
     solve: (stats, parameters) => stats.correlationSampleSize(parameters),
+    powerAt: (stats, parameters, n) => stats.correlationPowerAt({ ...parameters, n }),
     notice: 'Approximate planning: bias-corrected Fisher-z with a t-based cutoff, testing null ρ = 0.',
     calculationNote: 'Fisher-z approximation with alternative bias correction and central-t critical correlation, aligned with pwr.r.test. Not an exact correlation-distribution calculation.',
     allocationRule: 'Smallest integer number of independent complete X/Y observations reaching the approximate target power; minimum 4.',
@@ -190,6 +207,7 @@
     formula: 'R² / (1 − R²)', effectHint: 'Test the complete slope set against an intercept-only model. Include all slope degrees of freedom.',
     allocations: (r, p) => [['Observations', r.n], ['Predictor df', p.predictors]],
     solve: (stats, parameters) => stats.regressionSampleSize(parameters),
+    powerAt: (stats, parameters, n) => stats.regressionPowerAt({ ...parameters, n }),
     notice: 'Overall-model planning, not power for a particular coefficient, predictor block, or logistic regression.',
     calculationNote: 'Cohen fixed-model convention: numerator df = p, residual df = N − p − 1, noncentrality = N × f²; one fitted intercept.',
     allocationRule: 'Smallest whole N reaching target overall-model power. N must be at least p + 2 so residual df is positive.',
@@ -199,6 +217,7 @@
     },
   });
   const engine = typeof module !== 'undefined' ? require('../stats.js') : globalThis.StatFighter.stats;
+  const fmtCount = value => new Intl.NumberFormat('en-US').format(value);
   const whole = (raw, id, label, min, max) => {
     const value = number(raw, id, label);
     if (!Number.isInteger(value) || value < min || value > max) fail(id, `${label} must be a whole number from ${min} to ${max}.`);
@@ -212,6 +231,7 @@
   const expansionBase = {
     design: () => ({}), unit: 'participants', totalLabel: 'TOTAL PARTICIPANTS',
     solve: (stats, parameters, id) => stats.expansionSampleSize(id, parameters),
+    powerAt(stats, parameters, n) { return stats.expansionPowerAt(this.id, { ...parameters, n }); },
     allocations: r => [['Group 1', r.n], ['Group 2', r.n2]],
     allocationRule: 'Smallest balanced integer size under the stated planning approximation. At least 20 per group; complete observations only.',
   };
@@ -288,9 +308,25 @@
   });
   register({
     ...expansionBase, id: 'log-rank', name: 'Log-rank · Schoenfeld event approximation', signed: false, effectSymbol: '|log HR|', unit: 'observed events', totalLabel: 'OBSERVED EVENTS', scoreLabel: 'REQUIRED EVENT COUNT', missionLabel: 'EVENT PLANNING MISSION', waitingAction: 'Find the event target.',
-    defaults: { mode: 'effect', effect: String(Math.abs(Math.log(.7))), hazardRatio: '.7', allocation: '.5', alpha: '.05', power: '.8' },
+    defaults: { mode: 'effect', effect: String(Math.abs(Math.log(.7))), hazardRatio: '.7', allocation: '.5', alpha: '.05', power: '.8', controlMedian: '12', accrual: '12', followUp: '12', loss: '0.05' },
+    // Events are the verified answer. Enrolment is an optional, separately labelled second step.
+    dropout: false, extraTitle: 'ENROLMENT · OPTIONAL SECOND STEP', extraFields: ['controlMedian', 'accrual', 'followUp', 'loss'],
+    resultTables(raw, p, r, stats) {
+      const rows = [];
+      try {
+        const median = number(raw, 'controlMedian', 'Group 2 median time'), accrual = number(raw, 'accrual', 'Accrual period'), followUp = number(raw, 'followUp', 'Additional follow-up'), loss = number(raw, 'loss', 'Loss to follow-up');
+        if (median <= 0) fail('controlMedian', 'Group 2 median time must be positive.');
+        if (accrual < 0 || followUp < 0 || accrual + followUp <= 0) fail('accrual', 'Accrual and follow-up must be non-negative, with some follow-up time.');
+        if (loss < 0 || loss >= 1) fail('loss', 'Loss to follow-up per time unit must be from 0 to below 1.');
+        const hr = raw.mode === 'hazard-ratio' ? Number(raw.hazardRatio) : Math.exp(-p.effect), control = Math.LN2 / median, dropoutHazard = -Math.log1p(-loss);
+        const p1 = stats.eventProbability({ hazard: hr * control, dropoutHazard, accrual, followUp }), p2 = stats.eventProbability({ hazard: control, dropoutHazard, accrual, followUp });
+        const overall = p.allocation * p1 + (1 - p.allocation) * p2, total = Math.ceil(r.total / overall - 1e-9);
+        rows.push(['Hazard ratio used · Group 1 / Group 2', Number(hr.toPrecision(6))], ['P(event observed) · Group 1', p1.toFixed(4)], ['P(event observed) · Group 2', p2.toFixed(4)], ['Weighted event probability', overall.toFixed(4)], ['Participants to enrol', fmtCount(total)], ['Group 1 / Group 2 (approx.)', `${fmtCount(Math.round(total * p.allocation))} / ${fmtCount(total - Math.round(total * p.allocation))}`]);
+      } catch (error) { rows.push(['Enrolment not calculated', error.message]); }
+      return [{ title: 'Enrolment from events', rows, note: 'Exponential event and loss times, uniform accrual, then additional follow-up for everyone. Effect-size mode assumes Group 1 has the lower hazard. A planning approximation; the event count above is unchanged.' }];
+    },
     modes: [{ id: 'effect', label: 'Absolute log hazard ratio', fields: ['effect'] }, { id: 'hazard-ratio', label: 'Hazard ratio', fields: ['hazardRatio'] }],
-    designFields: ['allocation'], fields: { effect: numeric('Absolute log hazard ratio', 'Magnitude of natural log(HR), not HR itself.', { min: .001, max: Math.log(10) }), hazardRatio: numeric('Hazard ratio · Group 1 / Group 2', 'Constant proportional-hazards ratio, 0.1–10 excluding 1.', { min: .1, max: 10 }), allocation: numeric('Group 1 allocation proportion', 'Fraction randomized to Group 1; 0.5 means equal allocation.', { min: .1, max: .9 }) },
+    designFields: ['allocation'], fields: { effect: numeric('Absolute log hazard ratio', 'Magnitude of natural log(HR), not HR itself.', { min: .001, max: Math.log(10) }), hazardRatio: numeric('Hazard ratio · Group 1 / Group 2', 'Constant proportional-hazards ratio, 0.1–10 excluding 1.', { min: .1, max: 10 }), allocation: numeric('Group 1 allocation proportion', 'Fraction randomized to Group 1; 0.5 means equal allocation.', { min: .1, max: .9 }), controlMedian: numeric('Group 2 median time to event', 'In your chosen time unit, e.g. months.', { min: 0 }), accrual: numeric('Accrual period', 'Time to recruit everyone, same unit.', { min: 0 }), followUp: numeric('Additional follow-up', 'Time after the last enrolment, same unit.', { min: 0 }), loss: numeric('Loss to follow-up per time unit', 'Decimal: 0.05 means 5% lost per unit.', { min: 0, max: .99 }) },
     design(raw) { const allocation=number(raw,'allocation','Group 1 allocation proportion'); if(allocation<.1||allocation>.9)fail('allocation','Allocation proportion must be 0.1–0.9.');return { allocation }; },
     effectRange: { min: .001, max: Math.log(10), label: 'Absolute log hazard ratio' }, effectErrorField: 'hazardRatio',
     effect(raw) { if(raw.mode==='effect')return number(raw,'effect','Absolute log hazard ratio');const hr=positive(raw,'hazardRatio','Hazard ratio');if(hr<.1||hr>10)fail('hazardRatio','Hazard ratio must be 0.1–10.');return Math.abs(Math.log(hr)); },
@@ -299,7 +335,7 @@
     notice: 'EVENTS, not participants. Two-sided Schoenfeld approximation; recruitment requires a separate accrual, censoring and follow-up model.',
     calculationNote: 'Normal log-rank shift = |ln(HR)|√[Dq(1−q)] for D events and allocation q. Both rejection tails count. No enrollment conversion is implied.',
     assumptions: 'Two independent randomized groups, proportional hazards, fixed allocation, independent non-informative censoring and a prespecified event. The Schoenfeld event approximation can be inaccurate far from HR=1 or with unequal allocation. It does not model accrual, event-time distribution, competing risks, crossing hazards, loss to follow-up, interim looks or covariates. Required observed events are not required participants; minimum 10 is a numerical policy, not an accuracy guarantee.',
-    help: { effect: ['Absolute natural log hazard ratio', 'Enter |ln(HR)|. HR=0.7 gives approximately 0.356675. This is a two-sided comparison with null HR=1; reciprocal HR has identical planning power.'], hazardRatio: ['Anticipated hazard ratio', 'Specify a constant Group 1 / Group 2 hazard ratio. A hazard ratio is not a risk ratio or median-survival ratio. 0.1–10, excluding values whose absolute log is below 0.001.'], allocation: ['Randomization fraction', 'The proportion assigned to Group 1, not the proportion experiencing an event. The event-information approximation is Dq(1−q).'], verification: ['Event-model verification', 'Independent R normal-distribution reference values check event counts, achieved approximate power and the preceding count. This verifies implementation of the stated approximation, not its accuracy for a particular survival design.'] },
+    help: { controlMedian: ['Group 2 median time', 'The anticipated median time to the event in Group 2 (the comparator), in any time unit. Group 2 hazard = ln 2 / median, assumed constant. Use the same unit for accrual, follow-up and loss.'], accrual: ['Accrual period', 'How long recruitment takes, with participants arriving uniformly over that time. Zero means everyone starts together.'], followUp: ['Additional follow-up', 'Time from the last enrolment to the final analysis. Everyone is followed for at least this long.'], loss: ['Loss to follow-up', 'The proportion of participants lost per time unit, converted to a constant dropout hazard. 0.05 per month means about 5% lost each month. Lost participants contribute no observed event.'], effect: ['Absolute natural log hazard ratio', 'Enter |ln(HR)|. HR=0.7 gives approximately 0.356675. This is a two-sided comparison with null HR=1; reciprocal HR has identical planning power.'], hazardRatio: ['Anticipated hazard ratio', 'Specify a constant Group 1 / Group 2 hazard ratio. A hazard ratio is not a risk ratio or median-survival ratio. 0.1–10, excluding values whose absolute log is below 0.001.'], allocation: ['Randomization fraction', 'The proportion assigned to Group 1, not the proportion experiencing an event. The event-information approximation is Dq(1−q).'], verification: ['Event-model verification', 'Independent R normal-distribution reference values check event counts, achieved approximate power and the preceding count. This verifies implementation of the stated approximation, not its accuracy for a particular survival design.'] },
   });
   register({
     ...expansionBase, id: 'bonferroni', name: 'Bonferroni · pooled two-sample family planning', signed: true, effectSymbol: 'd',
@@ -321,6 +357,7 @@
     marginPlanning: true, signed: false, unit: 'participants', totalLabel: 'TOTAL PARTICIPANTS', effectSymbol: 'δ/σ',
     effectRange: { min: -1000, max: 1000, label: 'Standardized expected difference' }, effectErrorField: 'mean1',
     solve: (stats,p,id) => stats.marginSampleSize(id,p),
+    powerAt(stats,p,n) { return stats.marginPowerAt(this.id,{...p,n}); },
     allocations: r => [['Test group',r.n],['Reference group',r.n2]],
     allocationRule: 'Smallest equal integer size per parallel group meeting target power; at least 2 per group. Counts complete analyzable participants, with no dropout allowance.',
     receipt(raw,p,r) {
@@ -385,6 +422,224 @@
     receipt(raw,p,r){return [...marginBase.receipt.call(this,raw,p,r),['Analysis design','Two independent parallel groups, equal allocation'],['Expected geometric mean ratio',Math.exp(p.effect*p.sigma)],['Common natural-log SD',p.sigma],['Equivalent total CV',Math.sqrt(Math.expm1(p.sigma*p.sigma))]];},
     help:{gmr:['Expected Test/Reference geometric mean ratio','Enter a ratio such as 0.95, not 95 or a 5% difference. It is exp(mean ln(Test)−mean ln(Reference)), not generally the ratio of arithmetic means. It must lie inside both prespecified limits.'],cv:['Total CV for a parallel trial','Enter a decimal: 0.30 means 30%. Use common total between-subject variability. Crossover within-subject CV is not interchangeable. Conversion: sigmaLog=sqrt(ln(1+CV²)). Supported total CV 0.01–2.'],lowerRatio:['Prespecified ratio limits','Limits apply to the geometric mean Test/Reference ratio. Default 0.80 and 1.25 illustrate conventional average-bioequivalence planning; they are editable and are not automatically suitable for every drug, endpoint or jurisdiction.'],upperRatio:['Upper Test/Reference ratio limit','Use a positive ratio above the lower limit and expected ratio. Natural logs are used internally. Bounds need not be reciprocal.'],logDifference:['Natural-log expected difference','Enter mean ln(Test)−mean ln(Reference), equal to ln(GMR). Do not use log10. The default ratio 0.95 gives about −0.0512933.'],logSD:['Natural-log population SD','Common between-subject SD of the log-transformed outcome. CV and log-SD modes have separate drafts. It is sqrt(ln(1+CV²)), not ln(CV).'],alpha:['TOST one-sided alpha','Both tests use alpha. At 0.05 the corresponding two-sided confidence interval is 90%, and it must be wholly within the ratio limits. No extra division by two is applied.']},
   });
+
+  // ---- Arcade wave: Anchor, Switch, Parry ----
+
+  register({
+    ...tBase,
+    id: 'ancova',
+    name: 'ANCOVA · two groups with baseline covariates · approximate',
+    unit: 'participants',
+    totalLabel: 'TOTAL PARTICIPANTS',
+    defaults: { ...tDefaults, mean1: '105', mean2: '100', sd: '10', covariates: '1', correlation: '.5', ratio: '1' },
+    modes: [
+      { id: 'effect', label: 'Effect size d', fields: ['effect'] },
+      { id: 'means', label: 'Means + SD', fields: ['mean1', 'mean2', 'sd'] },
+    ],
+    designFields: ['covariates', 'correlation'],
+    tuningFields: ['alpha', 'power', 'ratio'],
+    fields: {
+      ...tBase.fields,
+      effect: numeric('Effect size · d', 'Adjusted mean difference ÷ the unadjusted outcome SD.', { min: -5, max: 5 }),
+      mean1: numeric('Group 1 mean', 'Expected population mean.'),
+      mean2: numeric('Group 2 mean', 'Use the same units as Group 1.'),
+      sd: sdField('Outcome SD', 'Unadjusted within-group SD of the outcome.'),
+      covariates: numeric('Number of covariates', '1–10 baseline covariates in the model; each costs one degree of freedom.', { min: 1, max: 10, step: '1' }),
+      correlation: numeric('Covariate–outcome correlation · ρ', 'With one baseline, its correlation with the outcome; with several, the multiple correlation R.', { min: 0, max: .99, presets: ['.3', '.5', '.7'] }),
+      ratio: numeric('Allocation · n₂ / n₁', 'Group 2 relative to Group 1.', { min: 0.1, max: 10, presets: ['0.5', '1', '2'] }),
+    },
+    design(raw) {
+      const covariates = whole(raw, 'covariates', 'Number of covariates', 1, 10);
+      const correlation = number(raw, 'correlation', 'Covariate–outcome correlation');
+      if (correlation < 0 || correlation > .99) fail('correlation', 'Covariate–outcome correlation must be from 0 to 0.99.');
+      return { covariates, rSquared: correlation * correlation };
+    },
+    effectErrorField: 'mean1',
+    signConvention: 'Group 1 minus Group 2',
+    formula: '(mean₁ − mean₂) / SD',
+    effectHint: 'Two randomized groups. The baseline soaks up outcome variance; the effect is still in unadjusted SD units.',
+    effect: raw => raw.mode === 'effect' ? number(raw, 'effect', 'effect size') : (number(raw, 'mean1', 'Group 1 mean') - number(raw, 'mean2', 'Group 2 mean')) / positive(raw, 'sd', 'Outcome SD'),
+    solve: (stats, p) => stats.ancovaSampleSize(p),
+    powerAt: (stats, p, n) => stats.ancovaPowerAt({ ...p, n, n2: secondGroup(n, p.ratio) }),
+    allocations: r => [['Group 1', r.n], ['Group 2', r.n2]],
+    notice: 'Approximate ANCOVA planning: the residual SD shrinks by √(1 − ρ²) and each covariate costs one degree of freedom. Slightly optimistic for small trials.',
+    calculationNote: 'Noncentral t: df = N − 2 − q, noncentrality = |d| / √(1 − ρ²) / √(1/n₁ + 1/n₂). Ignores the extra variance from estimating the covariate slopes; R simulation puts the overstatement near half a percentage point of power at n ≈ 20–50 per group.',
+    additionalReceipt: (raw, p) => [['Covariate R²', Number(p.rSquared.toPrecision(10))], ['Variance factor 1 − R²', Number((1 - p.rSquared).toPrecision(10))], ['Effective d after adjustment', Number((Math.abs(p.effect) / Math.sqrt(1 - p.rSquared)).toPrecision(10))]],
+    allocationRule: 'Smallest integer Group 1 size that reaches the approximate target power. Group 2 = max(2, round(Group 1 × ratio)), half ties up; the model must leave at least one error degree of freedom.',
+    assumptions: 'Two randomized independent groups, normally distributed outcomes, a linear relationship between the prespecified baseline covariates and the outcome that is the same in both groups (no treatment-by-covariate interaction), and a common residual SD. The correlation is a planning value from earlier data; covariates measured after randomization are not allowed. The power model is the usual approximation that reduces the variance by 1 − ρ² and the degrees of freedom by the number of covariates. Complete, analyzable participants; no dropout allowance.',
+    advice: p => p.rSquared > .64 ? ['A correlation above 0.8 is rare outside lab measurements. If ρ is optimistic, the trial is too small.'] : [],
+    help: {
+      correlation: ['Covariate–outcome correlation', 'The correlation between the baseline measurement and the outcome within each group, from earlier studies. With several covariates use the multiple correlation R. It is squared internally: ρ = 0.5 removes a quarter of the outcome variance. Supported 0 to 0.99.'],
+      covariates: ['Number of covariates', 'Count the baseline covariates in the analysis model, excluding the treatment indicator and intercept. A categorical covariate with L levels counts L − 1. Each one costs a degree of freedom.'],
+      effect: ['Effect size for ANCOVA', 'The expected adjusted difference in means divided by the unadjusted outcome SD, the same d you would give Maverick. Anchor applies the covariate adjustment for you; do not divide by √(1 − ρ²) yourself.'],
+    },
+  });
+
+  const crossoverLogSD = cv => Math.sqrt(Math.log1p(cv * cv));
+  register({
+    ...marginBase,
+    id: 'tost-crossover',
+    name: '2×2 crossover TOST · average bioequivalence',
+    unit: 'subjects',
+    totalLabel: 'TOTAL SUBJECTS',
+    effectSymbol: 'ln(T/R)/σw',
+    effectErrorField: 'gmr',
+    defaults: { mode: 'effect', gmr: '.95', cv: '.3', lowerRatio: '.8', upperRatio: '1.25', logDifference: String(Math.log(.95)), logSD: String(crossoverLogSD(.3)), alpha: '.05', power: '.8' },
+    designFields: ['lowerRatio', 'upperRatio'],
+    modes: [
+      { id: 'effect', label: 'Geometric mean ratio + within-subject CV', fields: ['gmr', 'cv'] },
+      { id: 'log', label: 'Log difference + within log SD', fields: ['logDifference', 'logSD'] },
+    ],
+    fields: {
+      lowerRatio: numeric('Lower T/R equivalence ratio', 'Prespecified ratio bound. 0.80 is an editable conventional example.', { min: .01, max: 100 }),
+      upperRatio: numeric('Upper T/R equivalence ratio', 'Prespecified ratio bound. 1.25 is an editable conventional example.', { min: .01, max: 100 }),
+      gmr: numeric('Expected geometric mean ratio · T/R', 'Anticipated Test/Reference geometric-mean ratio.', { min: .01, max: 100 }),
+      cv: numeric('Within-subject CV', 'Decimal: 0.30 means 30%. Intra-subject variability from a crossover, not total CV.', { min: .01, max: 2 }),
+      logDifference: numeric('Expected natural-log mean difference', 'ln(geometric mean ratio).'),
+      logSD: numeric('Within-subject SD on natural-log scale', 'σw = √ln(1 + CVw²); the residual SD of the crossover model.', { min: crossoverLogSD(.01), max: crossoverLogSD(2) }),
+      alpha: marginAlpha,
+    },
+    design(raw) {
+      const lowerRatio = number(raw, 'lowerRatio', 'Lower T/R bound'), upperRatio = number(raw, 'upperRatio', 'Upper T/R bound');
+      if (lowerRatio < .01 || upperRatio > 100 || lowerRatio >= 1 || upperRatio <= 1 || lowerRatio >= upperRatio) fail('lowerRatio', 'Ratio bounds must straddle 1, be ordered, and be within 0.01–100.');
+      let sigma;
+      if (raw.mode === 'effect') {
+        const cv = number(raw, 'cv', 'Within-subject CV');
+        if (cv < .01 || cv > 2) fail('cv', 'Within-subject CV must be 0.01–2 as a decimal (1%–200%).');
+        sigma = crossoverLogSD(cv);
+      } else {
+        sigma = positive(raw, 'logSD', 'Within-subject log SD');
+        if (sigma < crossoverLogSD(.01) || sigma > crossoverLogSD(2)) fail('logSD', 'Log SD must correspond to a within-subject CV between 0.01 and 2.');
+      }
+      return { lower: Math.log(lowerRatio) / sigma, upper: Math.log(upperRatio) / sigma, sigma };
+    },
+    effect(raw, { sigma }) {
+      let delta;
+      if (raw.mode === 'effect') {
+        const gmr = number(raw, 'gmr', 'Expected geometric mean ratio');
+        if (gmr < .01 || gmr > 100) fail('gmr', 'Expected geometric mean ratio must be 0.01–100.');
+        delta = Math.log(gmr);
+      } else delta = number(raw, 'logDifference', 'Expected log mean difference');
+      return delta / sigma;
+    },
+    validateParameters(p, raw) {
+      if (p.effect - p.lower < .001 || p.upper - p.effect < .001) fail(raw.mode === 'effect' ? 'gmr' : 'logDifference', 'Expected geometric mean ratio must lie inside both ratio limits, with at least 0.001 log-SD clearance from each.');
+    },
+    derive(raw) {
+      try {
+        const p = this.normalize(raw);
+        return `ln(T/R) = ${Number((p.effect * p.sigma).toPrecision(7))} · σw = ${Number(p.sigma.toPrecision(7))} · ${(100 * (1 - 2 * p.alpha)).toFixed(2)}% CI for T/R must fit inside (${raw.lowerRatio}, ${raw.upperRatio})`;
+      } catch (e) { return e.message; }
+    },
+    solve: (stats, p) => stats.crossoverSampleSize(p),
+    powerAt: (stats, p, n) => stats.crossoverPowerAt({ ...p, n }),
+    allocations: r => [['Sequence TR', r.n], ['Sequence RT', r.n2]],
+    allocationRule: 'Smallest balanced design reaching target power: an equal whole number of subjects in each sequence (TR and RT), at least 2 each. Counts subjects completing both periods.',
+    notice: 'CROSSOVER: use the within-subject CV from a previous crossover, not total CV. Each subject receives both Test and Reference.',
+    calculationNote: 'Exact joint TOST power for the 2×2×2 crossover on the log scale (conditional-normal / chi-square integration, equivalent to Owen’s Q): se = σw√(2/N), df = N − 2, σw = √ln(1 + CVw²). Matches PowerTOST’s published 2×2 example (CV 0.30, GMR 0.95 → N 40).',
+    assumptions: 'A balanced two-sequence, two-period crossover with log-normal pharmacokinetic outcomes, no carry-over and no sequence effect, a common within-subject log-scale variance for Test and Reference, and complete data for every subject. T/R is a ratio of geometric means; both one-sided tests use the entered alpha and the 1 − 2α confidence interval must lie inside the prespecified limits. This plans average bioequivalence for one endpoint; it is not a replicate design, reference-scaled limits, or joint AUC/Cmax power, and the default limits do not establish regulatory suitability.',
+    receipt(raw, p, r) { return [...marginBase.receipt.call(this, raw, p, r), ['Analysis design', '2×2 crossover, balanced sequences'], ['Expected geometric mean ratio', Math.exp(p.effect * p.sigma)], ['Within-subject natural-log SD', p.sigma], ['Equivalent within-subject CV', Math.sqrt(Math.expm1(p.sigma * p.sigma))], ['Error df', r.df]]; },
+    advice: p => Math.sqrt(Math.expm1(p.sigma * p.sigma)) > .5 ? ['Within-subject CV above 50% makes this a highly variable drug. Reference-scaled limits or a replicate design may be the honest route.'] : [],
+    help: {
+      gmr: ['Expected geometric mean ratio', 'Enter a ratio such as 0.95, not 95. It is exp(mean ln(Test) − mean ln(Reference)). It must lie inside both prespecified limits; a ratio exactly at 1 is optimistic.'],
+      cv: ['Within-subject CV', 'Enter a decimal: 0.30 means 30%. Use the intra-subject CV from a previous crossover, usually derived from the residual mean square. Total (between-subject) CV is larger and belongs to Ratio, the parallel-group fighter. Conversion: σw = √ln(1 + CVw²).'],
+      lowerRatio: ['Prespecified ratio limits', 'Limits apply to the geometric mean Test/Reference ratio. 0.80 and 1.25 are the conventional average-bioequivalence example; they are editable and not automatically suitable for every product or jurisdiction.'],
+      upperRatio: ['Upper Test/Reference ratio limit', 'A positive ratio above the lower limit and the expected ratio. Natural logs are used internally.'],
+      logDifference: ['Natural-log expected difference', 'mean ln(Test) − mean ln(Reference) = ln(GMR). The default ratio 0.95 gives about −0.0512933.'],
+      logSD: ['Within-subject log SD', 'The residual SD of the crossover model on the natural-log scale, σw = √ln(1 + CVw²). Not ln(CV).'],
+      alpha: ['TOST one-sided alpha', 'Both tests use alpha. At 0.05 the corresponding two-sided confidence interval is 90%, and it must lie wholly within the ratio limits.'],
+    },
+  });
+
+  // Parry: risk difference p1 − p2 (Test minus Reference) against a prespecified null boundary.
+  const parryProportions = raw => {
+    if (raw.mode === 'proportions') return [probability(raw, 'p1', 'Test proportion'), probability(raw, 'p2', 'Reference proportion')];
+    const reference = probability(raw, 'reference', 'Reference proportion'), test = reference + number(raw, 'difference', 'Expected difference');
+    if (!(test > 0 && test < 1)) fail('difference', 'Reference proportion plus the expected difference must stay strictly between zero and one.');
+    return [test, reference];
+  };
+  register({
+    id: 'ni-proportions',
+    name: 'Non-inferiority · two proportions · Farrington–Manning',
+    marginPlanning: true,
+    signed: false,
+    unit: 'participants',
+    totalLabel: 'TOTAL PARTICIPANTS',
+    effectSymbol: 'p₁ − p₂',
+    defaults: { mode: 'proportions', p1: '.8', p2: '.8', reference: '.8', difference: '0', hypothesis: 'non-inferiority', benefit: 'higher', margin: '.1', alpha: '.025', power: '.8', ratio: '1' },
+    modes: [
+      { id: 'proportions', label: 'Two proportions', fields: ['p1', 'p2'] },
+      { id: 'difference', label: 'Reference + expected difference', fields: ['reference', 'difference'] },
+    ],
+    designFields: ['hypothesis', 'benefit', 'margin'],
+    tuningFields: ['alpha', 'power', 'ratio'],
+    fields: {
+      hypothesis: { label: 'Hypothesis', hint: 'Non-inferiority defends a loss of at most Δ; superiority by a margin must win by more than Δ (Δ = 0 is plain superiority).', options: [{ value: 'non-inferiority', label: 'Non-inferiority' }, { value: 'superiority', label: 'Superiority by a margin' }] },
+      benefit: { label: 'Beneficial direction', hint: 'Response rates: higher is better. Event or failure rates: lower is better.', options: [{ value: 'higher', label: 'Higher proportion is better' }, { value: 'lower', label: 'Lower proportion is better' }] },
+      margin: numeric('Margin · Δ (risk difference)', 'Prespecified, in proportion units: 0.10 means 10 percentage points.', { min: 0, max: .5, presets: ['.05', '.1', '.15'] }),
+      p1: numeric('Expected Test proportion · p₁', 'Strictly between 0 and 1.', { min: 0, max: 1 }),
+      p2: numeric('Expected Reference proportion · p₂', 'Same event definition as Test.', { min: 0, max: 1 }),
+      reference: numeric('Expected Reference proportion · p₂', 'Strictly between 0 and 1.', { min: 0, max: 1 }),
+      difference: numeric('Expected difference · p₁ − p₂', 'Test minus Reference; zero is common for non-inferiority.', { min: -1, max: 1 }),
+      alpha: numeric('One-sided alpha', '0.025 is the usual regulatory one-sided level.', { min: .0001, max: .2, presets: ['.01', '.025', '.05'] }),
+      ratio: numeric('Allocation · n_R / n_T', 'Reference group size relative to Test.', { min: 0.1, max: 10, presets: ['0.5', '1', '2'] }),
+    },
+    design(raw) {
+      if (!['non-inferiority', 'superiority'].includes(raw.hypothesis)) fail('hypothesis', 'Choose non-inferiority or superiority by a margin.');
+      if (!['higher', 'lower'].includes(raw.benefit)) fail('benefit', 'Choose whether higher or lower proportions are better.');
+      const margin = number(raw, 'margin', 'Margin');
+      if (margin < 0 || margin > .5) fail('margin', 'Margin must be from 0 to 0.5 in proportion units.');
+      if (raw.hypothesis === 'non-inferiority' && margin <= 0) fail('margin', 'A non-inferiority margin must be greater than zero.');
+      const direction = raw.benefit === 'higher' ? 1 : -1;
+      const [p1, p2] = parryProportions(raw);
+      return { hypothesis: raw.hypothesis, margin, direction, delta0: (raw.hypothesis === 'non-inferiority' ? -1 : 1) * direction * margin, p1, p2 };
+    },
+    effect: (raw, design) => design.p1 - design.p2,
+    effectRange: { min: -1, max: 1, label: 'Expected difference' },
+    effectErrorField: 'p1',
+    validateParameters(p, raw) {
+      if (p.direction * (p.effect - p.delta0) < .001) fail(raw.mode === 'proportions' ? 'p1' : 'difference', `The expected difference must be on the winning side of the null boundary ${p.delta0 >= 0 ? '+' : ''}${Number(p.delta0.toPrecision(6))}, by at least 0.001.`);
+    },
+    derive(raw) {
+      try {
+        const p = this.normalize(raw);
+        return `H₀: p₁ − p₂ ${p.direction === 1 ? '≤' : '≥'} ${Number(p.delta0.toPrecision(6))} · Expected p₁ − p₂ = ${Number(p.effect.toPrecision(6))} (p₁ ${Number(p.p1.toPrecision(6))}, p₂ ${Number(p.p2.toPrecision(6))})`;
+      } catch (e) { return e.message; }
+    },
+    effectHint: 'One one-sided risk-difference comparison against a prespecified boundary.',
+    formula: 'p₁ − p₂',
+    solve: (stats, p) => stats.proportionsMarginSampleSize(p),
+    powerAt: (stats, p, n) => stats.proportionsMarginPowerAt({ ...p, n, n2: secondGroup(n, p.ratio) }),
+    allocations: r => [['Test group', r.n], ['Reference group', r.n2]],
+    allocationRule: 'Smallest integer Test group size reaching the approximate target power. Reference = max(2, round(Test × ratio)), half ties up.',
+    notice: 'Farrington–Manning score test with a normal approximation. Rates near 0 or 1, or small groups, need an exact check.',
+    calculationNote: 'Power = Φ((s(p₁ − p₂ − δ₀) − z₁₋α√V₀) / √V₁), with V₀ from the restricted maximum-likelihood proportions under p₁ − p₂ = δ₀ and V₁ from the expected proportions; s = +1 when higher is better. The same approximation as gsDesign::nBinomial.',
+    receipt(raw, p, r) {
+      return [
+        ['Input mode', this.modes.find(m => m.id === raw.mode).label],
+        ...[...this.designFields, ...this.inputFields(raw)].map(id => [this.fields[id].label, raw[id]]),
+        ['Expected p₁ / p₂', `${p.p1} / ${p.p2}`],
+        ['Null boundary δ₀ for p₁ − p₂', p.delta0],
+        ['Restricted MLE under H₀', r.restricted.map(v => v.toFixed(6)).join(' / ')],
+        ['One-sided alpha', p.alpha],
+        ['Requested n_R / n_T', p.ratio], ['Actual n_R / n_T', (r.n2 / r.n).toFixed(4)],
+        ['Calculation model', this.calculationNote],
+      ];
+    },
+    assumptions: 'Two independent groups with Bernoulli outcomes and the same event definition, a prespecified margin on the risk-difference scale, and a one-sided test at the entered alpha. The Farrington–Manning score test uses the restricted maximum-likelihood proportions under the null boundary; power is a large-sample normal approximation. Non-inferiority needs an assay-sensitivity and constancy argument that no calculator can supply. Rare events, rates close to 0 or 1, ratio or odds-ratio margins, clustering and pairing need another model. Complete, analyzable participants; no dropout allowance.',
+    advice: p => [p.p1, p.p2].some(v => v < .05 || v > .95) ? ['A rate below 5% or above 95% strains the normal approximation. Check this design with exact or simulated power.'] : [],
+    help: {
+      hypothesis: ['Non-inferiority or superiority', 'Non-inferiority: H₀ says Test is worse than Reference by Δ or more. Superiority by a margin: H₀ says Test is not better by more than Δ; with Δ = 0 this is ordinary one-sided superiority, and with Δ > 0 it is “super-superiority”.'],
+      benefit: ['Which way is better?', 'For cure or response rates higher is better, so a loss is a negative p₁ − p₂. For infection, failure or adverse-event rates lower is better and the boundary flips sign.'],
+      margin: ['Risk-difference margin', 'Δ is in proportion units: 0.10 means ten percentage points. Choose it before the trial from clinical judgement and the historical effect of the Reference.'],
+      p1: ['Expected proportions', 'Anticipated population proportions, as decimals. Non-inferiority trials often assume p₁ = p₂.'],
+      p2: ['Reference proportion', 'The anticipated proportion with the Reference treatment, using the same event definition as Test.'],
+      reference: ['Reference proportion', 'The anticipated proportion with the Reference treatment. The Test proportion is this plus the expected difference.'],
+      difference: ['Expected difference', 'Test minus Reference, in proportion units. Zero means you expect the treatments to be equally good.'],
+      ratio: ['Allocation ratio', 'Reference group size divided by Test group size. Reference = max(2, round(Test × ratio)).'],
+    },
+  });
+
   if (typeof module !== 'undefined') module.exports = methods;
   else globalThis.StatFighter.methods = methods;
 }

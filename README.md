@@ -4,27 +4,38 @@ An arcade-themed sample size and power calculator that runs entirely in the brow
 
 ## Methods
 
-Fifteen fighters, one planning method each:
+Eighteen fighters live in four districts, and every one of them faces The Null, the CPU opponent. Each one plans one method:
 
-| Fighter | Method |
-| --- | --- |
-| Maverick | Pooled two-sample t-test |
-| Mirror | Paired t-test |
-| Iwan | One-sample t-test |
-| Nova | Balanced one-way ANOVA |
-| Bastion | Non-inferiority, parallel t-test |
-| Tess | TOST equivalence, parallel t-tests |
-| Ratio | Log-normal TOST, parallel bioequivalence |
-| Volt | Pearson correlation |
-| Vector | Multiple linear regression (overall F-test) |
-| Rook | Mann–Whitney (approximate) |
-| Echo | Wilcoxon signed-rank (approximate) |
-| Pip | Two proportions (approximate) |
-| Chi | Chi-square (approximate) |
-| Harbor | Log-rank event planning (approximate) |
-| Aegis | Bonferroni family planning |
+| District | Fighter | Method |
+| --- | --- | --- |
+| Mean Streets | Maverick | Two-sample t-test: pooled, or Welch for unequal SDs (approximate) |
+| | Mirror | Paired t-test |
+| | Iwan | One-sample t-test |
+| | Nova | Balanced one-way ANOVA |
+| | Anchor | ANCOVA with baseline covariates (approximate) |
+| | Volt | Pearson correlation (approximate) |
+| | Vector | Multiple linear regression (overall F-test) |
+| Frequency Frontier | Pip | Two proportions (approximate) |
+| | Chi | Chi-square (approximate) |
+| | Parry | Non-inferiority or superiority by a margin, two proportions (Farrington–Manning, approximate) |
+| | Rook | Mann–Whitney (approximate) |
+| | Echo | Wilcoxon signed-rank (approximate) |
+| Survival Coast | Harbor | Log-rank event planning, with an optional enrolment step (approximate) |
+| Boundary Citadel | Aegis | Bonferroni family planning |
+| | Bastion | Non-inferiority, parallel t-test |
+| | Tess | TOST equivalence, parallel t-tests |
+| | Ratio | Log-normal TOST, parallel bioequivalence |
+| | Switch | 2×2 crossover TOST, average bioequivalence |
 
-Methods marked *approximate* use explicitly stated large-sample models; each fighter's screen explains its assumptions.
+A future fighter can be marked `artPending: true` in `journey/content.js`: it stays out of the menus, and its direct link opens it with a placeholder silhouette.
+
+Methods marked *approximate* use explicitly stated large-sample models; each fighter's arena explains its assumptions. Every result can show an optional dropout allowance, a power curve and the sample size at 80, 90 and 95 percent power; none of these changes the verified number.
+
+## The interface
+
+Title → World → District select → Challenge card → Arena. Tap a district on the map to read its briefing and tap it again to enter. The select screen works like a fighting-game character select: arrow keys move the cursor, Enter or a second tap picks. Each fighter's challenge card shows the test, five stat bars and The Null, the CPU opponent. In the arena the fighter's bar is power, The Null's bar is the type II error that remains, and the clock shows alpha. The fight sequence is skippable, honours reduced motion and the Effects option, and never delays the result. The hi-score table keeps your last ten plans in this browser only.
+
+The screens are classic scripts in `journey/screens/`, sharing state through `journey/core.js`; `journey/journey.js` is the router.
 
 ## Run locally
 
@@ -48,7 +59,7 @@ npm test
 
 ### Reference values
 
-The numerical tests compare against fixtures computed independently in R with base `stats` only. To regenerate them, run the `Rscript tests/reference/generate*.R` scripts from the project root; [`tests/reference/README.md`](tests/reference/README.md) describes each fixture set and its conventions.
+The numerical tests compare against fixtures computed independently in R with base `stats` only (no add-on packages). To regenerate them, run the `Rscript tests/reference/generate*.R` scripts from the project root; [`tests/reference/README.md`](tests/reference/README.md) describes each fixture set and its conventions.
 
 ## Publishing
 

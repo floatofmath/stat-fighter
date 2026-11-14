@@ -67,9 +67,10 @@ test('Earth and all playable districts have complete method/content/art contract
   // A fighter whose art has not arrived is hidden; its planned files must not be precached yet.
   if(f.artPending){for(const file of [f.image,f.stageImage]){assert.ok(file.startsWith('./assets/web/'));assert.ok(!precache.includes(`'${file.replace('./assets/web/','./assets/')}'`),file);}}
   else for(const file of [f.image,f.stageImage]){assert.ok(existsSync(new URL('../'+file,import.meta.url)),file);tiered(file);}
+  if(!f.artPending){const thumb=f.image.replace('/assets/web/','/assets/thumb/');assert.ok(existsSync(new URL('../'+thumb,import.meta.url)),thumb);assert.ok(precache.includes(`'${thumb}'`),`${thumb} is precached`);}
   assert.ok(m.solve&&m.normalize&&m.assumptions&&m.powerAt,`${id} method contract`);
   assert.ok(f.headline&&f.challenge&&/^#[0-9a-f]{6}$/.test(f.accent),`${id} challenge card fields`);
-  for(const key of ['exactness','robustness','efficiency','flexibility']){const [score,reason]=f.stats[key];assert.ok(Number.isInteger(score)&&score>=1&&score<=10&&reason,`${id} ${key}`);}
+  for(const key of ['accuracy','robustness','efficiency','flexibility']){const [score,reason]=f.stats[key];assert.ok(Number.isInteger(score)&&score>=1&&score<=10&&reason,`${id} ${key}`);}
  }
  assert.equal(regions.map(r=>r.id).join(),'means,frequency,survival,boundary');
  assert.equal(regions.map(r=>r.roster.length).join(),'7,5,1,5');

@@ -10,12 +10,26 @@
   let finishFight = null;
 
   // ---- Fields ----
+  // Spinner step for the browser's up/down controls. step="any" steps by 1, which leaves a 0–1
+  // field at once, so bounded fields get a step that suits their range. min/max are aligned to
+  // the step so stepping lands on round values; validation still uses the method's own limits.
+  const spinOverrides = { gmr: .01, lowerRatio: .01, upperRatio: .01, hazardRatio: .05 };
+  function spinAttributes(id, f) {
+    let step = spinOverrides[id] ?? f.step;
+    if (step === 'any' && f.min !== undefined && f.max !== undefined) {
+      const span = f.max - f.min;
+      step = span <= 2 ? .01 : span <= 20 ? .1 : 'any';
+    }
+    if (step === 'any') return `step="any"${f.min !== undefined ? ` min="${f.min}"` : ''}${f.max !== undefined ? ` max="${f.max}"` : ''}`;
+    const snap = (v, round) => Number((Math[round](v / step + (round === 'floor' ? 1e-9 : -1e-9)) * step).toFixed(6));
+    return `step="${step}"${f.min !== undefined ? ` min="${snap(f.min, 'floor')}"` : ''}${f.max !== undefined ? ` max="${snap(f.max, 'ceil')}"` : ''}`;
+  }
   function field(id, extra = false) {
     const m = kit.method, f = m.fields[id], value = kit.state.draft[id];
     const attrs = `id="j-${id}" name="${id}" ${extra ? `data-extra="${id}"` : 'required'} aria-describedby="j-hint-${id}"`;
     const control = f.options
       ? `<select ${attrs}>${f.options.map(option => `<option value="${escape(option.value)}" ${value === option.value ? 'selected' : ''}>${escape(option.label)}</option>`).join('')}</select>`
-      : `<input ${attrs} type="number" step="${f.step}" ${f.min !== undefined ? `min="${f.min}"` : ''} ${f.max !== undefined ? `max="${f.max}"` : ''} value="${escape(value)}">`;
+      : `<input ${attrs} type="number" ${spinAttributes(id, f)} value="${escape(value)}">`;
     return `<div class="j-field"><div class="j-field-label"><label for="j-${id}">${f.label}</label>${kit.helpButton(id, `Help with ${f.label}`)}</div>${control}<small id="j-hint-${id}">${f.hint}</small>${f.presets ? `<div class="j-presets" aria-label="${f.label} presets">${f.presets.map(v => `<button type="button" data-preset="${id}:${v}" aria-label="Set ${f.label} to ${v}">${v}</button>`).join('')}</div>` : ''}</div>`;
   }
   function effectFields() {
@@ -138,7 +152,7 @@
       <div class="j-result-actions"><button class="j-button" data-copy="result" ${stale ? 'disabled' : ''}>COPY RESULT</button><button class="j-button" data-copy="link" ${stale ? 'disabled' : ''}>COPY LINK</button></div>
       <p id="j-copy-status" class="j-small" role="status"></p><textarea id="j-manual-copy" aria-label="Result or link to copy" readonly hidden></textarea>`;
   }
-  const dropoutField = () => `<div class="j-field"><div class="j-field-label"><label for="j-dropout">Dropout allowance</label>${kit.helpButton('dropout', 'Help with dropout allowance')}</div><input id="j-dropout" name="dropout" data-extra="dropout" type="number" step="any" min="0" max="0.9" value="${escape(kit.state.draft.dropout ?? '0')}" aria-describedby="j-hint-dropout"><small id="j-hint-dropout">Proportion expected to drop out, e.g. 0.1. Shown separately; the result above is unchanged.</small><div class="j-presets" aria-label="Dropout presets">${['0', '.1', '.2'].map(v => `<button type="button" data-preset="dropout:${v}" aria-label="Set dropout to ${v}">${v}</button>`).join('')}</div></div>`;
+  const dropoutField = () => `<div class="j-field"><div class="j-field-label"><label for="j-dropout">Dropout allowance</label>${kit.helpButton('dropout', 'Help with dropout allowance')}</div><input id="j-dropout" name="dropout" data-extra="dropout" type="number" step="0.01" min="0" max="0.9" value="${escape(kit.state.draft.dropout ?? '0')}" aria-describedby="j-hint-dropout"><small id="j-hint-dropout">Proportion expected to drop out, e.g. 0.1. Shown separately; the result above is unchanged.</small><div class="j-presets" aria-label="Dropout presets">${['0', '.1', '.2'].map(v => `<button type="button" data-preset="dropout:${v}" aria-label="Set dropout to ${v}">${v}</button>`).join('')}</div></div>`;
 
   // ---- Power curve and what-if table, from the method's own fixed-size evaluator ----
   function curveSvg(points, p, r) {

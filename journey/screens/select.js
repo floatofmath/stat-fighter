@@ -8,7 +8,7 @@
 
   function preview(id) {
     const f = content.fighters[id];
-    return `<div class="j-preview-art">${kit.portrait(f, 'j-preview-portrait', { lazy: true })}</div>
+    return `<div class="j-preview-art">${kit.portrait(f, 'j-preview-portrait')}</div>
       <div class="j-preview-copy">
         <p class="j-kicker">FIGHTER ${f.number} / ${kit.regionBy(f.region).name.toUpperCase()}</p>
         <h2 class="j-preview-name">${escape(f.name)}</h2>

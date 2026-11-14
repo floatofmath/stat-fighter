@@ -89,9 +89,11 @@
   kit.portrait = (person, className = '', { alt = person.alt, lazy = false } = {}) => person.artPending
     ? `<div class="j-portrait j-silhouette ${className}" style="--accent:${person.accent}" role="img" aria-label="${escape(alt)} Artwork coming soon."><i></i><b>${escape(person.name)}</b></div>`
     : `<div class="j-portrait ${className}"><img src="${person.image}" width="1024" height="1536" ${lazy ? 'loading="lazy" decoding="async"' : ''} alt="${escape(alt)}"></div>`;
+  // Small tier for tiles and avatars: assets/thumb/ holds 192 × 288 copies (scripts/make-thumbs.sh).
+  kit.thumbPath = image => image.replace('/assets/web/', '/assets/thumb/');
   kit.thumb = person => person.artPending
     ? `<span class="j-thumb j-silhouette" style="--accent:${person.accent}" aria-hidden="true"><i></i></span>`
-    : `<img class="j-thumb" src="${person.image}" width="1024" height="1536" loading="lazy" decoding="async" alt="">`;
+    : `<img class="j-thumb" src="${kit.thumbPath(person.image)}" width="192" height="288" decoding="async" alt="">`;
   kit.stageStyle = person => person.artPending ? '' : `background-image:url('${person.stageImage}')`;
   // The Null: a faceless hooded figure drawn in CSS until its portrait arrives.
   kit.nullFigure = (className = '') => content.cpu.image
@@ -119,7 +121,7 @@
 
   // Five stat bars: four honest method properties, then the fighter's flavour trait, always full.
   kit.statBars = (f, idPrefix = 'stat') => {
-    const rows = [['EXACTNESS', ...f.stats.exactness], ['ROBUSTNESS', ...f.stats.robustness], ['EFFICIENCY', ...f.stats.efficiency], ['FLEXIBILITY', ...f.stats.flexibility], [f.trait, 10, 'Flavour trait. Always maxed out.']];
+    const rows = [['CALC ACCURACY', f.stats.accuracy[0], `How this app computes power and sample size: ${f.stats.accuracy[1]}`], ['ROBUSTNESS', ...f.stats.robustness], ['EFFICIENCY', ...f.stats.efficiency], ['FLEXIBILITY', ...f.stats.flexibility], [f.trait, 10, 'Flavour trait. Always maxed out.']];
     return `<ul class="j-stats" aria-label="${escape(f.name)} stats">${rows.map(([label, value, reason], i) => `<li class="j-stat" tabindex="0" aria-describedby="${idPrefix}-${i}"><span class="j-stat-label">${escape(label)}</span><span class="j-stat-bar" style="--v:${value}" aria-hidden="true"></span><b>${value}<span class="sr-only"> out of 10</span></b><small id="${idPrefix}-${i}" class="j-stat-why">${escape(reason)}</small></li>`).join('')}</ul>`;
   };
 }

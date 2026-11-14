@@ -116,9 +116,10 @@
   });
 
   // Challenge-card data. stats: hand scores (1–10) with the reason shown on focus.
-  // EXACTNESS: exact finite-sample or approximate. ROBUSTNESS: how few distributional assumptions.
+  // CALC ACCURACY: whether the app computes power and sample size exactly under the method's model,
+  // or by a large-sample approximation. It says nothing about whether the test itself is exact. ROBUSTNESS: how few distributional assumptions.
   // EFFICIENCY: how little sample when its assumptions hold. FLEXIBILITY: allocation, tails and input modes.
-  const card = (headline, challenge, accent, [exactness, robustness, efficiency, flexibility]) => ({ headline, challenge, accent, stats: { exactness, robustness, efficiency, flexibility } });
+  const card = (headline, challenge, accent, [accuracy, robustness, efficiency, flexibility]) => ({ headline, challenge, accent, stats: { accuracy, robustness, efficiency, flexibility } });
   const cards = {
     'two-sample': card('TWO-SAMPLE T-TEST', 'T-TEST', '#49b4c3', [[10, 'Exact noncentral-t power, pooled; Welch mode is approximate.'], [6, 'Needs roughly normal outcomes; Welch mode drops the equal-SD assumption.'], [9, 'Uses every measurement directly.'], [9, 'Any allocation, one or two tails, effect, means or Welch entry.']]),
     paired: card('PAIRED T-TEST', 'PAIR UP', '#d487a7', [[10, 'Exact noncentral-t power.'], [6, 'Needs roughly normal paired differences.'], [10, 'Each unit is its own control.'], [6, 'Tails and two entry modes; one design.']]),

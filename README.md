@@ -35,6 +35,8 @@ Methods marked *approximate* use explicitly stated large-sample models; each fig
 
 Title → World → District select → Challenge card → Arena. Tap a district on the map to read its briefing and tap it again to enter. The select screen works like a fighting-game character select: arrow keys move the cursor, Enter or a second tap picks. Each fighter's challenge card shows the test, five stat bars and The Null, the CPU opponent. In the arena the fighter's bar is power, The Null's bar is the type II error that remains, and the clock shows alpha. The fight sequence is skippable, honours reduced motion and the Effects option, and never delays the result. The hi-score table keeps your last ten plans in this browser only.
 
+Portraits come in three sizes: full size in `assets/` (precached for offline use), half size in `assets/web/` (what pages request), and 192 × 288 thumbnails in `assets/thumb/` for tiles and avatars. After adding or replacing a portrait, run `scripts/make-thumbs.sh` (needs ImageMagick) and add the new files to `sw.js`.
+
 The screens are classic scripts in `journey/screens/`, sharing state through `journey/core.js`; `journey/journey.js` is the router.
 
 ## Run locally

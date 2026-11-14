@@ -359,10 +359,15 @@
         history.replaceState(null, '', kit.urlFor(tableRaw(), true));
         kit.recordScore({ id: method.id, name: kit.fighter.name, total: result.total, unit: method.unit, power: result.power, at: new Date().toISOString().slice(0, 10), link: kit.urlFor(tableRaw(), true) });
         refreshResult(); kit.refreshHud(); kit.emit('calculationSucceeded');
+        // At any width: show the ring for the fight if it is off screen, then bring the result
+        // into view. In one column the result sits below the form, so it always scrolls there.
         const phone = window.matchMedia('(max-width: 760px)').matches;
-        const toScore = () => { if (phone) kit.root.querySelector('.j-scoreboard').scrollIntoView({ block: 'start' }); };
+        const offScreen = el => { const box = el.getBoundingClientRect(); return box.top < 0 || box.top > window.innerHeight * .6; };
+        const reveal = el => { if (phone || offScreen(el)) el.scrollIntoView({ block: 'start' }); };
+        const toScore = () => reveal(kit.root.querySelector('.j-scoreboard'));
         if (kit.motion()) {
-          if (phone) kit.root.querySelector('.j-ring').scrollIntoView({ block: 'start' });
+          const ring = kit.root.querySelector('.j-ring'), box = ring.getBoundingClientRect();
+          if (box.top < 0 || box.bottom > window.innerHeight) ring.scrollIntoView({ block: 'start' });
           fight(toScore);
         } else toScore();
       } catch (error) {

@@ -8,30 +8,32 @@
   let arenaError = '';
   let fightTimers = [];
   let finishFight = null;
+  let stepWired = false;
 
   // ---- Fields ----
-  // Spinner step for the browser's up/down controls. step="any" steps by 1, which leaves a 0–1
-  // field at once, so bounded fields get a step that suits their range. min/max are aligned to
-  // the step so stepping lands on round values; validation still uses the method's own limits.
-  const spinOverrides = { gmr: .01, lowerRatio: .01, upperRatio: .01, hazardRatio: .05 };
-  function spinAttributes(id, f) {
-    let step = spinOverrides[id] ?? f.step;
-    if (step === 'any' && f.min !== undefined && f.max !== undefined) {
-      const span = f.max - f.min;
-      step = span <= 2 ? .01 : span <= 20 ? .1 : 'any';
-    }
-    if (step === 'any') return `step="any"${f.min !== undefined ? ` min="${f.min}"` : ''}${f.max !== undefined ? ` max="${f.max}"` : ''}`;
-    const snap = (v, round) => Number((Math[round](v / step + (round === 'floor' ? 1e-9 : -1e-9)) * step).toFixed(6));
-    return `step="${step}"${f.min !== undefined ? ` min="${snap(f.min, 'floor')}"` : ''}${f.max !== undefined ? ` max="${snap(f.max, 'ceil')}"` : ''}`;
+  // Number fields get their own ▼ ▲ buttons and arrow keys, driven by methods.stepValue: one
+  // ladder for every field (proportions toward the nearer end, other values by ~5–10%). The
+  // browser's spinner is hidden because it can only step by a fixed amount.
+  const bounds = f => `${f.min !== undefined ? ` min="${f.min}"` : ''}${f.max !== undefined ? ` max="${f.max}"` : ''}`;
+  const numberInput = (attrs, f, value, label) => `<div class="j-num"><button type="button" class="j-step" data-step="-1" tabindex="-1" aria-label="Decrease ${escape(label)}">▼</button><input ${attrs} type="number" step="any" inputmode="decimal"${bounds(f)} value="${escape(value)}"><button type="button" class="j-step" data-step="1" tabindex="-1" aria-label="Increase ${escape(label)}">▲</button></div>`;
+  function stepInput(input, direction) {
+    const m = kit.method, id = input.name;
+    const f = id === 'dropout' ? { min: 0, max: .9 } : m.fieldView(id, kit.state.draft);
+    const next = kit.methods.stepValue(input.value, direction, f);
+    if (next === null) return;
+    input.value = String(next);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
   }
   function field(id, extra = false) {
-    const m = kit.method, f = m.fields[id], value = kit.state.draft[id];
+    const m = kit.method, f = m.fieldView(id, kit.state.draft), value = kit.state.draft[id];
+    if (f.hidden) return '';
     const attrs = `id="j-${id}" name="${id}" ${extra ? `data-extra="${id}"` : 'required'} aria-describedby="j-hint-${id}"`;
     const control = f.options
       ? `<select ${attrs}>${f.options.map(option => `<option value="${escape(option.value)}" ${value === option.value ? 'selected' : ''}>${escape(option.label)}</option>`).join('')}</select>`
-      : `<input ${attrs} type="number" ${spinAttributes(id, f)} value="${escape(value)}">`;
+      : numberInput(attrs, f, value, f.label);
     return `<div class="j-field"><div class="j-field-label"><label for="j-${id}">${f.label}</label>${kit.helpButton(id, `Help with ${f.label}`)}</div>${control}<small id="j-hint-${id}">${f.hint}</small>${f.presets ? `<div class="j-presets" aria-label="${f.label} presets">${f.presets.map(v => `<button type="button" data-preset="${id}:${v}" aria-label="Set ${f.label} to ${v}">${v}</button>`).join('')}</div>` : ''}</div>`;
   }
+  const designFields = () => kit.method.designFields.map(id => field(id)).join('');
   function effectFields() {
     const m = kit.method, selected = m.modes.find(mode => mode.id === kit.state.draft.mode);
     return `<div class="j-fields effect-fields${selected?.repeat ? ' j-repeat-fields' : ''}">${m.inputFields(kit.state.draft).map(id => field(id)).join('')}</div>${selected?.repeat ? '<p class="j-small">All group means have equal weight. Change the group count above; hidden group values are retained.</p>' : ''}`;
@@ -152,7 +154,7 @@
       <div class="j-result-actions"><button class="j-button" data-copy="result" ${stale ? 'disabled' : ''}>COPY RESULT</button><button class="j-button" data-copy="link" ${stale ? 'disabled' : ''}>COPY LINK</button></div>
       <p id="j-copy-status" class="j-small" role="status"></p><textarea id="j-manual-copy" aria-label="Result or link to copy" readonly hidden></textarea>`;
   }
-  const dropoutField = () => `<div class="j-field"><div class="j-field-label"><label for="j-dropout">Dropout allowance</label>${kit.helpButton('dropout', 'Help with dropout allowance')}</div><input id="j-dropout" name="dropout" data-extra="dropout" type="number" step="0.01" min="0" max="0.9" value="${escape(kit.state.draft.dropout ?? '0')}" aria-describedby="j-hint-dropout"><small id="j-hint-dropout">Proportion expected to drop out, e.g. 0.1. Shown separately; the result above is unchanged.</small><div class="j-presets" aria-label="Dropout presets">${['0', '.1', '.2'].map(v => `<button type="button" data-preset="dropout:${v}" aria-label="Set dropout to ${v}">${v}</button>`).join('')}</div></div>`;
+  const dropoutField = () => `<div class="j-field"><div class="j-field-label"><label for="j-dropout">Dropout allowance</label>${kit.helpButton('dropout', 'Help with dropout allowance')}</div>${numberInput('id="j-dropout" name="dropout" data-extra="dropout" aria-describedby="j-hint-dropout"', { min: 0, max: .9 }, kit.state.draft.dropout ?? '0', 'dropout allowance')}<small id="j-hint-dropout">Proportion expected to drop out, e.g. 0.1. Shown separately; the result above is unchanged.</small><div class="j-presets" aria-label="Dropout presets">${['0', '.1', '.2'].map(v => `<button type="button" data-preset="dropout:${v}" aria-label="Set dropout to ${v}">${v}</button>`).join('')}</div></div>`;
 
   // ---- Power curve and what-if table, from the method's own fixed-size evaluator ----
   function curveSvg(points, p, r) {
@@ -286,7 +288,7 @@
             <form id="j-arena-form" novalidate>
               <div class="j-console-heading"><h2 id="j-movelist">MOVE LIST / SET YOUR MOVE</h2>${kit.helpButton('assumptions', 'Study assumptions')}</div>
               ${m.notice ? `<p class="j-method-notice">${escape(m.notice)}</p>` : ''}
-              ${m.designFields.length ? `<div class="j-fields j-design-fields">${m.designFields.map(id => field(id)).join('')}</div>` : ''}
+              ${m.designFields.length ? `<div class="j-fields j-design-fields">${designFields()}</div>` : ''}
               <fieldset class="j-mode"><legend>Enter your effect</legend><div>${m.modes.map(mode => `<label><input type="radio" name="mode" value="${mode.id}" ${s.draft.mode === mode.id ? 'checked' : ''}><span>${mode.label}</span></label>`).join('')}</div></fieldset>
               <div id="j-effect-fields">${effectFields()}</div>
               <p id="j-derived" class="j-derived"></p>
@@ -357,11 +359,30 @@
         history.replaceState(null, '', kit.urlFor(kit.state.draft));
         kit.rerender();
         kit.root.querySelector(`input[name="mode"][value="${mode}"]`)?.focus();
+      } else if (m().refreshOn?.includes(event.target.name)) {
+        // A choice that shows, hides or relabels other design fields (Bell and Towel's ρ / γ).
+        const name = event.target.name; syncDraft(form); m().fieldChanged?.(name, kit.state.draft); kit.save();
+        history.replaceState(null, '', kit.urlFor(kit.state.draft));
+        kit.root.querySelector('.j-design-fields').innerHTML = designFields(); derived();
+        kit.root.querySelector(`#j-${name}`)?.focus();
       } else {
         const repeat = m().modes.find(mode => mode.id === kit.state.draft.mode)?.repeat;
         if (repeat?.count === event.target.name) { syncDraft(form); kit.root.querySelector('#j-effect-fields').innerHTML = effectFields(); derived(); }
       }
     };
+    // ▼ ▲ buttons (also the extras, outside the form) and the arrow keys on a number field.
+    // The screen root outlives the arena, so these listeners are added once and act only on .j-num.
+    if (!stepWired) {
+      stepWired = true;
+      kit.root.addEventListener('click', event => {
+        const button = event.target.closest('.j-num [data-step]');
+        if (button) stepInput(button.parentElement.querySelector('input'), Number(button.dataset.step));
+      });
+      kit.root.addEventListener('keydown', event => {
+        if (!['ArrowUp', 'ArrowDown'].includes(event.key) || !event.target.matches?.('.j-num input')) return;
+        event.preventDefault(); stepInput(event.target, event.key === 'ArrowUp' ? 1 : -1);
+      });
+    }
     form.onsubmit = event => {
       event.preventDefault(); syncDraft(form); kit.emit('calculationStarted');
       const errorBox = kit.root.querySelector('#j-error'); errorBox.hidden = true; arenaError = '';

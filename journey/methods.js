@@ -60,9 +60,13 @@
         const { count, prefix, min, max } = mode.repeat, n = Number(raw[count]);
         return [...mode.fields, ...Array.from({ length: Number.isInteger(n) && n >= min && n <= max ? n : 0 }, (_, i) => `${prefix}${i + 1}`)];
       },
+      // A method may relabel or hide a field depending on other inputs (fieldFor); the arena and
+      // the receipt both read fields through fieldView, and hidden design fields are skipped.
+      fieldView(id, raw) { return { ...this.fields[id], ...(this.fieldFor?.(id, raw) ?? {}) }; },
+      shownDesignFields(raw) { return this.designFields.filter(id => !this.fieldView(id, raw).hidden); },
       receipt(raw, parameters, result) {
         const rows = [['Input mode', this.modes.find(mode => mode.id === raw.mode).label]];
-        for (const id of [...this.designFields, ...this.inputFields(raw)]) rows.push([this.fields[id].label, raw[id]]);
+        for (const id of [...this.shownDesignFields(raw), ...this.inputFields(raw)]) rows.push([this.fieldView(id, raw).label, raw[id]]);
         rows.push([`Effect ${this.effectSymbol} / alpha`, `${parameters.effect} / ${parameters.alpha}`]);
         if (this.signed) rows.push(['Alternative', parameters.alternative]);
         if (this.calculationNote) rows.push(['Calculation model', this.calculationNote]);
@@ -805,9 +809,9 @@
     t1: numeric('First interim · information fraction', 'Share of the final information at the first look, e.g. 0.5.', { min: .05, max: .95, presets: ['.33', '.5', '.67'] }),
     t2: numeric('Second interim · information fraction', 'Used only with three looks. Must lie after the first.', { min: .1, max: .95, presets: ['.67', '.75'] }),
     spending: { label: 'Efficacy spending function', hint: 'How the one-sided alpha is spent across looks.', options: spendingOptions },
-    spendingParameter: numeric('Efficacy spending parameter', 'ρ for the power family (3 is OBF-like), γ for HSD (−4 is OBF-like). Ignored by the Lan–DeMets families.', { min: -40, max: 40 }),
+    spendingParameter: numeric('Efficacy spending parameter', 'Shown only for the power family (ρ) and Hwang–Shih–DeCani (γ).', { min: -40, max: 40 }),
     futilitySpending: { label: 'Futility (beta) spending function', hint: 'How the type II error is spent on futility stops.', options: spendingOptions },
-    futilityParameter: numeric('Futility spending parameter', 'ρ or γ for the futility family; ignored by the Lan–DeMets families.', { min: -40, max: 40 }),
+    futilityParameter: numeric('Futility spending parameter', 'Shown only for the power family (ρ) and Hwang–Shih–DeCani (γ).', { min: -40, max: 40 }),
     effect: numeric('Standardized effect · d', 'Two equal groups, normal outcome: mean difference ÷ SD.', { min: -5, max: 5 }),
     hazardRatio: numeric('Hazard ratio', 'Event-driven design with equal allocation; the size is a number of events.', { min: .1, max: 10 }),
     fixedSize: numeric('Fixed-design sample size', 'From any fighter: the size that gives your target power without interim looks.', { min: 1 }),
@@ -833,10 +837,11 @@
     effectErrorField: 'effect',
     design(raw, futility) {
       if (!['2', '3'].includes(raw.looks)) fail('looks', 'Choose two or three looks.');
-      const t1 = number(raw, 't1', 'First interim fraction'), t2 = number(raw, 't2', 'Second interim fraction');
+      const t1 = number(raw, 't1', 'First interim fraction'), t2 = raw.looks === '3' ? number(raw, 't2', 'Second interim fraction') : NaN;
       if (t1 < .05 || t1 > .95) fail('t1', 'The first interim must be between 5% and 95% of the information.');
-      if (t2 < .1 || t2 > .95 || t2 - t1 < .05) fail('t2', 'The second interim must come at least 5% of the information after the first, and before 95%.');
-      const parameter = (family, key) => { const value = number(raw, key, 'Spending parameter'); if (family === 'power' && (value < .1 || value > 10)) fail(key, 'The power-family ρ must be from 0.1 to 10.'); if (family === 'hsd' && (value < -40 || value > 40)) fail(key, 'γ must be from −40 to 40.'); return value; };
+      if (raw.looks === '3' && (t2 < .1 || t2 > .95 || t2 - t1 < .05)) fail('t2', 'The second interim must come at least 5% of the information after the first, and before 95%.');
+      // The Lan–DeMets families take no parameter; their (hidden) parameter field is not validated.
+      const parameter = (family, key) => { if (!['power', 'hsd'].includes(family)) return 0; const value = number(raw, key, family === 'power' ? 'ρ' : 'γ'); if (family === 'power' && (value < .1 || value > 10)) fail(key, 'The power-family ρ must be from 0.1 to 10.'); if (family === 'hsd' && (value < -40 || value > 40)) fail(key, 'γ must be from −40 to 40.'); return value; };
       if (!spendingNames[raw.spending]) fail('spending', 'Choose an efficacy spending function.');
       const out = { fractions: raw.looks === '2' ? [t1, 1] : [t1, t2, 1], spending: raw.spending, spendingParameter: parameter(raw.spending, 'spendingParameter'), futility: Boolean(futility) };
       if (futility) {
@@ -862,6 +867,24 @@
       try { const p = this.normalize(raw); return `FIXED-DESIGN SIZE ${Number(p.fixedSize.toPrecision(7))} · LOOKS AT ${p.fractions.map(x => `${Math.round(x * 100)}%`).join(' / ')} · ${spendingNames[p.spending]}`; }
       catch (e) { return e.message; }
     },
+    // ρ or γ appears only for the family that uses it, labelled for that family; the second
+    // interim appears only with three looks.
+    fieldFor(id, raw) {
+      if (id === 't2' && raw.looks !== '3') return { hidden: true };
+      const family = { spendingParameter: raw.spending, futilityParameter: raw.futilitySpending }[id];
+      if (!family) return null;
+      const side = id === 'spendingParameter' ? 'Efficacy' : 'Futility';
+      if (family === 'power') return { label: `${side} spending · ρ`, hint: side === 'Efficacy' ? '0.1 to 10. ρ = 3 behaves like O’Brien–Fleming, ρ = 1 like Pocock.' : '0.1 to 10. Larger ρ makes early futility stops rarer.', min: .1, max: 10 };
+      if (family === 'hsd') return { label: `${side} spending · γ`, hint: side === 'Efficacy' ? '−40 to 40. γ = −4 behaves like O’Brien–Fleming, γ = 1 like Pocock.' : '−40 to 40. γ = −2 is a common, moderately aggressive choice.', min: -40, max: 40 };
+      return { hidden: true };
+    },
+    // Switching family loads that family's usual parameter, so a γ never lands in a ρ field.
+    refreshOn: ['looks', 'spending', 'futilitySpending'],
+    fieldChanged(id, draft) {
+      const key = { spending: 'spendingParameter', futilitySpending: 'futilityParameter' }[id];
+      const usual = { power: { spendingParameter: '3', futilityParameter: '2' }, hsd: { spendingParameter: '-4', futilityParameter: '-2' } }[draft[id]];
+      if (key && usual) draft[key] = usual[key];
+    },
     effectHint: 'The size without interim looks; interim looks inflate it slightly.',
     formula: '',
     solve: (stats, p) => stats.sequentialSampleSize(p),
@@ -884,7 +907,7 @@
       t1: ['Information fraction', 'The share of the final information available at the interim: participants with an outcome for a mean comparison, or events for a survival endpoint. 0.5 means halfway.'],
       t2: ['Second interim', 'Used only with three looks. It must come at least 5% of the information after the first interim.'],
       spending: ['Spending functions', 'O’Brien–Fleming type spends almost nothing early, so early stops need overwhelming evidence and the final bound stays close to the fixed design. Pocock type spends evenly and stops earlier more often, at the price of a larger maximum. The power family (ρ) and Hwang–Shih–DeCani (γ) interpolate: ρ = 3 or γ = −4 behave like O’Brien–Fleming, ρ = 1 or γ = 1 like Pocock.'],
-      spendingParameter: ['Spending parameter', 'Only for the power family (ρ, 0.1 to 10) and Hwang–Shih–DeCani (γ, −40 to 40). Larger ρ or more negative γ spends less alpha early.'],
+      spendingParameter: ['Spending parameter', 'The power family takes ρ (0.1 to 10) and Hwang–Shih–DeCani takes γ (−40 to 40). Larger ρ or more negative γ spends less alpha early. The O’Brien–Fleming and Pocock types have no parameter, so the field is hidden for them.'],
       futilitySpending: ['Futility spending', 'How the type II error is spent on futility stops. Non-binding: the efficacy bounds are computed as if futility stops might be ignored, which is the regulatory default.'],
       futilityParameter: ['Futility parameter', 'ρ or γ for the futility family. γ = −2 is a common, moderately aggressive choice.'],
       effect: ['Standardized effect', 'Mean difference ÷ SD for two equal groups with a normal outcome. The fixed-design size uses the normal approximation 4(z_α + z_β)²/d².'],
@@ -914,6 +937,48 @@
     notice: 'NON-BINDING futility: efficacy bounds ignore the futility stops, so the trial keeps its α even if a futility stop is overruled.',
     calculationNote: 'Efficacy bounds from alpha spending, ignoring futility. Futility bounds from beta spending under the alternative, the final one equal to the final efficacy bound; the drift is chosen so the total type II error with futility obeyed equals β. Recursive numerical integration; matches R mvtnorm references to 1e-6.',
   });
+
+  // ---- Up/down stepping for number fields ----
+  // One rule for every field instead of a step per field. Proportions (a field bounded by 0 and 1)
+  // step along a 1–2–5 ladder of the distance to the nearer end (plus 0.025, 0.15 and 0.25), so an
+  // attack rate moves 0.001 → 0.002 → 0.005, alpha 0.01 → 0.02 → 0.025 → 0.05, and power
+  // 0.8 → 0.85 → 0.9 → 0.95 → 0.975 → 0.98 → 0.99.
+  // Everything else steps by roughly 5–10% of its size on round values (0.7 → 0.75, 128 → 130),
+  // and whole-number fields by at least 1. Typing still accepts any value.
+  const ladder = [];
+  for (let e = -6; e <= -1; e++) for (const m of [1, 2, 5]) ladder.push(Number((m * 10 ** e).toPrecision(6)));
+  ladder.push(.025, .15, .25);
+  const tidy = x => Number(x.toPrecision(12));
+  const niceStep = a => { const e = Math.floor(Math.log10(a)), m = a / 10 ** e; return tidy((m < 2 - 1e-9 ? .1 : m < 5 - 1e-9 ? .2 : .5) * 10 ** e); };
+  // A round 1–2–5 value at or below a: the first step away from zero, and where steps toward zero snap to it.
+  const niceRound = a => { const e = Math.floor(Math.log10(a)), m = a / 10 ** e; return tidy((m >= 5 ? 5 : m >= 2 ? 2 : 1) * 10 ** e); };
+  function stepValue(value, direction, f = {}) {
+    const v = Number(value), up = direction > 0, min = f.min ?? -Infinity, max = f.max ?? Infinity;
+    if (String(value).trim() === '' || !Number.isFinite(v)) return null;
+    const clamp = x => Math.min(max, Math.max(min, x));
+    if (v < min) return up ? min : null;
+    if (v > max) return up ? null : max;
+    const integer = String(f.step) === '1', zeroStep = niceRound(Number.isFinite(max - min) ? (max - min) / 100 : .1);
+    let next;
+    if (!integer && min >= 0 && max <= 1) {
+      const points = [...new Set(ladder.flatMap(d => [d, tidy(1 - d)]))].filter(x => x >= min && x <= max).sort((a, b) => a - b);
+      next = up ? points.find(x => x > v + 1e-12) ?? max : points.findLast(x => x < v - 1e-12) ?? min;
+    } else if (v === 0 || (Math.abs(v) < 1e-9)) {
+      next = (up ? 1 : -1) * Math.max(integer ? 1 : 0, zeroStep);
+    } else {
+      const a = Math.abs(v), outward = (v > 0) === up;
+      // Moving toward zero uses the step of the decade below, so 1 → 0.95 rather than 1 → 0.9.
+      let s = niceStep(outward ? a : a * (1 - 1e-9));
+      if (integer) s = Math.max(1, Math.round(s));
+      let mag = outward ? tidy((Math.floor(a / s + 1e-9) + 1) * s) : tidy((Math.ceil(a / s - 1e-9) - 1) * s);
+      next = Math.sign(v) * Math.max(0, mag);
+      // Fields that allow zero reach it instead of shrinking forever.
+      if (!outward && min <= 0 && mag < zeroStep) next = 0;
+    }
+    next = clamp(tidy(next));
+    return next === v ? null : next;
+  }
+  Object.defineProperty(methods, 'stepValue', { value: stepValue, enumerable: false });
 
   if (typeof module !== 'undefined') module.exports = methods;
   else globalThis.StatFighter.methods = methods;

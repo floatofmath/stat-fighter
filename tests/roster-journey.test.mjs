@@ -18,7 +18,8 @@ for(const m of Object.values(methods)) {
  test(`${m.id}: reject invalid active fields and preserve inactive ones`,()=>{
   for(const mode of m.modes){
    const raw={...m.defaults,mode:mode.id};
-   for(const id of [...m.inputFields(raw),...m.designFields,...m.tuningFields]){
+   // Fields hidden by the other inputs (Bell/Towel ρ or γ for a Lan–DeMets family) are not validated.
+   for(const id of [...m.inputFields(raw),...m.shownDesignFields(raw),...m.tuningFields]){
     assert.throws(()=>m.normalize({...raw,[id]:''}),RangeError,`${mode.id}/${id} empty`);
     assert.throws(()=>m.normalize({...raw,[id]:'Infinity'}),RangeError,`${mode.id}/${id} nonfinite`);
    }
@@ -79,3 +80,44 @@ for(const [i,row]of csv.entries()){
   }
  });
 }
+
+test('Bell and Towel show ρ or γ only for the family that uses it',()=>{
+ for(const id of ['gsd-efficacy','gsd-futility']){
+  const m=methods[id],raw={...m.defaults};
+  assert.ok(!m.shownDesignFields({...raw,spending:'obf'}).includes('spendingParameter'));
+  assert.ok(!m.shownDesignFields({...raw,spending:'pocock'}).includes('spendingParameter'));
+  assert.match(m.fieldView('spendingParameter',{...raw,spending:'power'}).label,/ρ/);
+  assert.match(m.fieldView('spendingParameter',{...raw,spending:'hsd'}).label,/γ/);
+  assert.ok(!m.shownDesignFields({...raw,looks:'2'}).includes('t2'));
+  // Switching family loads its usual value, so a γ never sits in a ρ field.
+  const d={...raw,spending:'power',spendingParameter:'-4'};m.fieldChanged('spending',d);assert.equal(d.spendingParameter,'3');
+  d.spending='hsd';m.fieldChanged('spending',d);assert.equal(d.spendingParameter,'-4');
+  // A hidden, blank parameter or second interim does not block the calculation.
+  assert.doesNotThrow(()=>m.normalize({...raw,spending:'obf',spendingParameter:'',looks:'2',t2:''}));
+  assert.throws(()=>m.normalize({...raw,spending:'power',spendingParameter:'-4'}),RangeError);
+ }
+ const towel=methods['gsd-futility'];
+ assert.match(towel.fieldView('futilityParameter',towel.defaults).label,/Futility.*γ/);
+ assert.ok(!towel.shownDesignFields({...towel.defaults,futilitySpending:'obf'}).includes('futilityParameter'));
+});
+test('up/down steps follow one ladder for every field',()=>{
+ const step=methods.stepValue,walk=(v,dir,f,n)=>{const out=[];for(let i=0;i<n;i++){v=step(v,dir,f);out.push(v);}return out;};
+ assert.deepEqual(walk('.001',1,{min:0,max:1},6),[.002,.005,.01,.02,.025,.05]);
+ assert.deepEqual(walk('.8',1,methods['two-sample'].fields.power,6),[.85,.9,.95,.975,.98,.99]);
+ assert.deepEqual(walk('.05',-1,methods['two-sample'].fields.alpha,3),[.025,.02,.01]);
+ assert.deepEqual(walk('.7',1,{min:.1,max:10},3),[.75,.8,.85]);
+ assert.deepEqual(walk('1.1',-1,{min:.1,max:10},3),[1,.95,.9]);
+ assert.deepEqual(walk('128',1,{min:1},2),[130,140]);
+ assert.deepEqual(walk('2',1,{min:2,max:20,step:'1'},2),[3,4]);
+ assert.equal(step('.73',1,{min:.1,max:10}),.75);assert.equal(step('.73',-1,{min:.1,max:10}),.7);
+ assert.equal(step('.999',1,{min:.5,max:.999}),null);assert.equal(step('5',1,{min:-5,max:5}),null);
+ assert.equal(step('',1,{}),null);assert.equal(step('abc',1,{}),null);
+ assert.equal(step('0',1,{min:-1,max:1}),.02);assert.equal(step('0',-1,{min:-1,max:1}),-.02);
+ assert.equal(step('-4',1,{min:-40,max:40}),-3.8);
+ // Every field of every method steps to a value inside its bounds.
+ for(const m of Object.values(methods))for(const [id,f] of Object.entries(m.fields)){
+  if(f.options)continue;
+  const start=m.defaults[id]??(f.min!==undefined&&f.max!==undefined?String((f.min+f.max)/2):'1');
+  for(const dir of [1,-1]){let v=start;for(let i=0;i<40;i++){const next=step(v,dir,f);if(next===null)break;assert.ok(Number.isFinite(next)&&(f.min===undefined||next>=f.min)&&(f.max===undefined||next<=f.max),`${m.id}/${id} ${v}→${next}`);assert.ok(dir>0?next>Number(v):next<Number(v),`${m.id}/${id} moves`);v=String(next);}}
+ }
+});

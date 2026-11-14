@@ -318,3 +318,12 @@ span.j-thumb.j-silhouette i{width:80%;height:86%}
   .j-life.cpu .j-life-bar{transform:none}
   .j-clock{justify-self:center}
 }
+
+/* ---- Number fields: ▼ input ▲, stepped by methods.stepValue; the browser spinner is hidden ---- */
+.j-num{display:flex;align-items:stretch;min-width:0}
+.j-num input{flex:1 1 auto;min-width:0;appearance:textfield;-moz-appearance:textfield;text-align:center}
+.j-num input::-webkit-inner-spin-button,.j-num input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.j-step{flex:0 0 40px;min-height:44px;border:1px solid #46606a;background:#101d27;color:#a1bec7;font:11px/1 var(--arcade,monospace);cursor:pointer;padding:0;touch-action:manipulation;user-select:none}
+.j-step:first-child{border-right:0}.j-step:last-child{border-left:0}
+.j-step:hover{color:#edce79;border-color:#ad8a44}
+.j-step:active{background:#1d3240;color:#fff3a6}

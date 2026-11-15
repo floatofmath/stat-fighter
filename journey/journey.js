@@ -129,7 +129,7 @@
       const legacyMode = method.modes.some(mode => mode.id === 'effect') ? 'effect' : method.defaults.mode;
       const raw = { ...method.defaults };
       for (const key of Object.keys(raw)) if (query.has(key)) raw[key] = query.get(key);
-      raw.mode = legacyMode; history.replaceState(null, '', kit.urlFor(raw, stage === 'results')); return render(focus);
+      raw.mode = legacyMode; kit.replaceUrl(kit.urlFor(raw, stage === 'results')); return render(focus);
     }
     if (stage === 'arena' && search) {
       if (query.has('v') && query.get('v') !== '1') kit.routeError = 'This arena link uses an unsupported version. Choose a fighter from Quick Select.';

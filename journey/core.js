@@ -80,6 +80,14 @@
   kit.path = (stage, id = kit.activeId) => `#${stage}?test=${encodeURIComponent(id)}`;
   kit.regionPath = (id = kit.regionId) => `#continent?region=${encodeURIComponent(id)}`;
   kit.urlFor = (raw, run = false) => '#arena?' + new URLSearchParams({ v: '1', test: kit.activeId, ...raw, ...(run ? { run: '1' } : {}) }).toString();
+  // Keep the address bar in step with the draft. Safari throws a SecurityError when replaceState is
+  // called too often (holding ▲ on a number field), so a refused update is retried once things settle.
+  let urlTimer = 0;
+  kit.replaceUrl = url => {
+    clearTimeout(urlTimer);
+    try { history.replaceState(null, '', url); } catch { urlTimer = setTimeout(() => kit.replaceUrl(url), 2000); }
+  };
+  window.addEventListener('hashchange', () => clearTimeout(urlTimer));
 
   // ---- Markup helpers ----
   kit.helpButton = (id, label = 'Help') => `<button type="button" class="j-help" data-help="${id}" aria-label="${escape(label)}">?</button>`;

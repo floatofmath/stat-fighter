@@ -245,7 +245,7 @@
   };
   const rankBase = {
     ...expansionBase, signed: true, effectSymbol: 'θ−½',
-    defaults: { mode: 'effect', effect: '.2', probability: '.7', alpha: '.05', power: '.8', alternative: 'two-sided' },
+    defaults: { mode: 'effect', effect: '0.2', probability: '0.7', alpha: '0.05', power: '0.8', alternative: 'two-sided' },
     effectRange: { min: .001, max: .49, label: 'Absolute centered probability' },
     fields: rankFields, effectErrorField: 'probability',
     effect: raw => raw.mode === 'effect' ? number(raw, 'effect', 'centered probability') : probability(raw, 'probability', 'Alternative probability') - .5,
@@ -276,7 +276,7 @@
   });
   register({
     ...expansionBase, id: 'proportions', name: 'Two proportions · arcsine approximation', signed: true, effectSymbol: 'h',
-    defaults: { mode: 'effect', effect: '0.20135792079033066', proportion1: '.6', proportion2: '.5', alpha: '.05', power: '.8', alternative: 'two-sided' },
+    defaults: { mode: 'effect', effect: '0.20135792079033066', proportion1: '0.6', proportion2: '0.5', alpha: '0.05', power: '0.8', alternative: 'two-sided' },
     modes: [{ id: 'effect', label: 'Cohen’s h', fields: ['effect'] }, { id: 'proportions', label: 'Two proportions', fields: ['proportion1','proportion2'] }],
     fields: { effect: numeric('Effect size · Cohen’s h', 'Signed arcsine-transformed difference, Group 1 minus Group 2.', { min: -3, max: 3 }), proportion1: numeric('Group 1 proportion', 'Anticipated event proportion, strictly between 0 and 1.', { min: 0, max: 1 }), proportion2: numeric('Group 2 proportion', 'Same binary outcome and coding in both groups.', { min: 0, max: 1 }) },
     effectRange: { min: .001, max: 3, label: 'Absolute Cohen’s h' }, effectErrorField: 'proportion1', signConvention: 'Group 1 proportion minus Group 2 proportion',
@@ -290,7 +290,7 @@
   const cells = ['cell11','cell12','cell21','cell22'];
   register({
     ...expansionBase, id: 'chi-square', name: 'Chi-square · noncentral χ² approximation', signed: false, effectSymbol: 'w', unit: 'observations', totalLabel: 'TOTAL OBSERVATIONS',
-    defaults: { mode: 'effect', effect: '.2', df: '1', cell11: '.3', cell12: '.2', cell21: '.2', cell22: '.3', alpha: '.05', power: '.8' },
+    defaults: { mode: 'effect', effect: '0.2', df: '1', cell11: '0.3', cell12: '0.2', cell21: '0.2', cell22: '0.3', alpha: '0.05', power: '0.8' },
     modes: [{ id: 'effect', label: 'Cohen’s w + df', fields: ['effect'] }, { id: 'table', label: '2 × 2 joint probabilities', fields: cells }],
     designFields: ['df'], fields: { df: numeric('Chi-square degrees of freedom', '1–100; must be 1 for the 2 × 2 independence mode.', { min: 1, max: 100, step: '1' }), effect: numeric('Effect size · Cohen’s w', '√Σ[(alternative − null)² / null] over cells.', { min: .001, max: 5 }), ...Object.fromEntries(cells.map((id,i)=>[id,numeric(`Joint probability · row ${Math.floor(i/2)+1}, column ${i%2+1}`, 'Four positive joint probabilities must sum to one.', { min: 0, max: 1 })])) },
     design(raw) { const df = whole(raw,'df','Degrees of freedom',1,100); if (raw.mode === 'table' && df !== 1) fail('df','A 2 × 2 independence table requires df = 1.'); return { df }; },
@@ -312,7 +312,7 @@
   });
   register({
     ...expansionBase, id: 'log-rank', name: 'Log-rank · Schoenfeld event approximation', signed: false, effectSymbol: '|log HR|', unit: 'observed events', totalLabel: 'OBSERVED EVENTS', scoreLabel: 'REQUIRED EVENT COUNT', missionLabel: 'EVENT PLANNING MISSION', waitingAction: 'Find the event target.',
-    defaults: { mode: 'effect', effect: String(Math.abs(Math.log(.7))), hazardRatio: '.7', allocation: '.5', alpha: '.05', power: '.8', controlMedian: '12', accrual: '12', followUp: '12', loss: '0.05' },
+    defaults: { mode: 'effect', effect: String(Math.abs(Math.log(.7))), hazardRatio: '0.7', allocation: '0.5', alpha: '0.05', power: '0.8', controlMedian: '12', accrual: '12', followUp: '12', loss: '0.05' },
     // Events are the verified answer. Enrolment is an optional, separately labelled second step.
     dropout: false, extraTitle: 'ENROLMENT · OPTIONAL SECOND STEP', extraFields: ['controlMedian', 'accrual', 'followUp', 'loss'],
     resultTables(raw, p, r, stats) {
@@ -345,7 +345,7 @@
     ...expansionBase, id: 'bonferroni', name: 'Bonferroni · pooled two-sample family planning', signed: true, effectSymbol: 'd',
     defaults: { ...tDefaults, comparisons: '5', mean1: '105', mean2: '100', sd: '10' },
     modes: [{ id: 'effect', label: 'Effect size d', fields: ['effect'] }, { id: 'means', label: 'Means + common SD', fields: ['mean1','mean2','sd'] }],
-    designFields: ['comparisons'], fields: { ...tBase.fields, comparisons: numeric('Number of tests in the family', '1–100 prespecified comparisons, with equal Bonferroni alpha allocation.', { min: 1, max: 100, step: '1' }), mean1: numeric('Group 1 mean','Anticipated population mean.'), mean2: numeric('Group 2 mean','Same units as Group 1.'), sd: sdField('Common SD'), alpha: numeric('Familywise alpha · α', 'Family error budget; each comparison uses α / number of tests.', { min:.0001,max:.2,presets:['.01','.05','.1'] }), power: numeric('Marginal target power', 'Power for this specified comparison at α/m; not power to reject all or any tests.', { min:.5,max:.999,presets:['.8','.9','.95'] }) },
+    designFields: ['comparisons'], fields: { ...tBase.fields, comparisons: numeric('Number of tests in the family', '1–100 prespecified comparisons, with equal Bonferroni alpha allocation.', { min: 1, max: 100, step: '1' }), mean1: numeric('Group 1 mean','Anticipated population mean.'), mean2: numeric('Group 2 mean','Same units as Group 1.'), sd: sdField('Common SD'), alpha: numeric('Familywise alpha · α', 'Family error budget; each comparison uses α / number of tests.', { min:.0001,max:.2,presets:['0.01','0.05','0.1'] }), power: numeric('Marginal target power', 'Power for this specified comparison at α/m; not power to reject all or any tests.', { min:.5,max:.999,presets:['0.8','0.9','0.95'] }) },
     design: raw => ({ comparisons: whole(raw,'comparisons','Family size',1,100) }),
     effectRange: { min:.001,max:5,label:'Absolute Cohen’s d' }, effectErrorField:'mean1', signConvention:'Group 1 mean minus Group 2 mean',
     effect: raw => raw.mode==='effect'?number(raw,'effect','Cohen’s d'):(number(raw,'mean1','Group 1 mean')-number(raw,'mean2','Group 2 mean'))/positive(raw,'sd','Common SD'),
@@ -378,15 +378,15 @@
     mean2: numeric('Expected Reference mean','Use the same measurement units as Test.'),
     sd: sdField('Common population SD','Common between-participant SD on the analysis scale; not a standard error.'),
   };
-  const marginAlpha = numeric('Alpha per one-sided test','TOST uses this alpha for each component; do not divide it by two.', { min:.0001,max:.2,presets:['.025','.05','.1'] });
+  const marginAlpha = numeric('Alpha per one-sided test','TOST uses this alpha for each component; do not divide it by two.', { min:.0001,max:.2,presets:['0.025','0.05','0.1'] });
   const stdDifference = raw => raw.mode==='effect'?number(raw,'effect','Expected standardized difference'):(number(raw,'mean1','Test mean')-number(raw,'mean2','Reference mean'))/positive(raw,'sd','Common population SD');
   const scaleFor = raw => raw.mode==='effect'?1:positive(raw,'sd','Common population SD');
   const effectFieldFor = raw => raw.mode==='effect'?'effect':'mean1';
   register({
     ...marginBase, id:'non-inferiority', name:'Non-inferiority · parallel pooled t-test',
-    defaults:{mode:'effect',effect:'0',margin:'.5',marginRaw:'.5',mean1:'100',mean2:'100',sd:'1',benefit:'higher',alpha:'.025',power:'.8'},
+    defaults:{mode:'effect',effect:'0',margin:'0.5',marginRaw:'0.5',mean1:'100',mean2:'100',sd:'1',benefit:'higher',alpha:'0.025',power:'0.8'},
     designFields:['benefit'], modes:[{id:'effect',label:'Difference + margin in SD units',fields:['effect','margin']},{id:'means',label:'Means + SD + raw margin',fields:['mean1','mean2','sd','marginRaw']}],
-    fields:{...differenceFields,benefit:{label:'Beneficial outcome direction',hint:'Choose before observing data. Difference is always Test minus Reference.',options:[{value:'higher',label:'Higher is better'},{value:'lower',label:'Lower is better'}]},margin:numeric('Allowed loss · Δ / σ','Positive prespecified non-inferiority margin in common-SD units.',{min:0,max:1000}),marginRaw:numeric('Allowed loss · Δ','Positive prespecified margin, in the same original units as the means and SD.',{min:0}),alpha:numeric('One-sided alpha','0.025 is a common planning choice; use your prespecified Type I error level.',{min:.0001,max:.2,presets:['.01','.025','.05']})},
+    fields:{...differenceFields,benefit:{label:'Beneficial outcome direction',hint:'Choose before observing data. Difference is always Test minus Reference.',options:[{value:'higher',label:'Higher is better'},{value:'lower',label:'Lower is better'}]},margin:numeric('Allowed loss · Δ / σ','Positive prespecified non-inferiority margin in common-SD units.',{min:0,max:1000}),marginRaw:numeric('Allowed loss · Δ','Positive prespecified margin, in the same original units as the means and SD.',{min:0}),alpha:numeric('One-sided alpha','0.025 is a common planning choice; use your prespecified Type I error level.',{min:.0001,max:.2,presets:['0.01','0.025','0.05']})},
     design(raw){if(!['higher','lower'].includes(raw.benefit))fail('benefit','Choose whether higher or lower outcomes are beneficial.');const key=raw.mode==='effect'?'margin':'marginRaw';const margin=positive(raw,key,'Allowed loss')/scaleFor(raw);if(!Number.isFinite(margin)||margin>1000)fail(key,'The allowed loss divided by SD must be positive and at most 1000.');return {margin,direction:raw.benefit==='higher'?1:-1};},
     effect:stdDifference,
     validateParameters(p,raw){if(p.margin+p.direction*p.effect<.001)fail(effectFieldFor(raw),'Expected Test minus Reference difference must be on the non-inferior side of the boundary, at least 0.001 SD inside it.');},
@@ -399,7 +399,7 @@
   });
   register({
     ...marginBase, id:'tost', name:'TOST equivalence · parallel pooled t-tests',
-    defaults:{mode:'effect',effect:'0',lower:'-.5',upper:'.5',mean1:'100',mean2:'100',sd:'1',lowerRaw:'-.5',upperRaw:'.5',alpha:'.05',power:'.8'},
+    defaults:{mode:'effect',effect:'0',lower:'-0.5',upper:'0.5',mean1:'100',mean2:'100',sd:'1',lowerRaw:'-0.5',upperRaw:'0.5',alpha:'0.05',power:'0.8'},
     modes:[{id:'effect',label:'Difference + bounds in SD units',fields:['effect','lower','upper']},{id:'means',label:'Means + SD + raw bounds',fields:['mean1','mean2','sd','lowerRaw','upperRaw']}],
     fields:{...differenceFields,lower:numeric('Lower equivalence bound · L / σ','Prespecified lower Test−Reference limit in common-SD units.',{min:-1000,max:1000}),upper:numeric('Upper equivalence bound · U / σ','Prespecified upper limit; asymmetric bounds are allowed.',{min:-1000,max:1000}),lowerRaw:numeric('Lower equivalence bound · L','Prespecified Test−Reference limit in original outcome units.'),upperRaw:numeric('Upper equivalence bound · U','Same original units as the means and common SD.'),alpha:marginAlpha},
     design(raw){const scale=scaleFor(raw),lo=raw.mode==='effect'?'lower':'lowerRaw',hi=raw.mode==='effect'?'upper':'upperRaw',lower=number(raw,lo,'Lower equivalence bound')/scale,upper=number(raw,hi,'Upper equivalence bound')/scale;if(!Number.isFinite(lower)||!Number.isFinite(upper)||lower< -1000||upper>1000||lower>=0||upper<=0||lower>=upper)fail(lo,'Bounds must straddle zero, be ordered, and have standardized values between −1000 and 1000.');return {lower,upper};},
@@ -413,7 +413,7 @@
   });
   register({
     ...marginBase, id:'tost-lognormal', name:'Log-normal TOST · parallel bioequivalence',effectSymbol:'ln(T/R)/σlog',effectErrorField:'gmr',
-    defaults:{mode:'effect',gmr:'.95',cv:'.3',lowerRatio:'.8',upperRatio:'1.25',logDifference:String(Math.log(.95)),logSD:String(Math.sqrt(Math.log1p(.3**2))),alpha:'.05',power:'.8'},
+    defaults:{mode:'effect',gmr:'0.95',cv:'0.3',lowerRatio:'0.8',upperRatio:'1.25',logDifference:String(Math.log(.95)),logSD:String(Math.sqrt(Math.log1p(.3**2))),alpha:'0.05',power:'0.8'},
     designFields:['lowerRatio','upperRatio'],modes:[{id:'effect',label:'Geometric mean ratio + total CV',fields:['gmr','cv']},{id:'log',label:'Log difference + log SD',fields:['logDifference','logSD']}],
     fields:{lowerRatio:numeric('Lower T/R equivalence ratio','Prespecified ratio bound. 0.80 is an editable conventional example.',{min:.01,max:100}),upperRatio:numeric('Upper T/R equivalence ratio','Prespecified ratio bound. 1.25 is an editable conventional example.',{min:.01,max:100}),gmr:numeric('Expected geometric mean ratio · T/R','Anticipated Test/Reference geometric-mean ratio, not arithmetic mean ratio.',{min:.01,max:100}),cv:numeric('Common total between-subject CV','Decimal: 0.30 means 30%. Parallel-group variability, not crossover within-subject CV.',{min:.01,max:2}),logDifference:numeric('Expected natural-log mean difference','mean[ln(Test)] − mean[ln(Reference)] = ln(geometric mean ratio).'),logSD:numeric('Common SD on natural-log scale','Between-subject population SD of log outcomes; not raw SD, log(CV), or standard error.',{min:Math.sqrt(Math.log1p(.01**2)),max:Math.sqrt(Math.log1p(2**2))}),alpha:marginAlpha},
     design(raw){const lowerRatio=number(raw,'lowerRatio','Lower T/R bound'),upperRatio=number(raw,'upperRatio','Upper T/R bound');if(lowerRatio<.01||upperRatio>100||lowerRatio>=1||upperRatio<=1||lowerRatio>=upperRatio)fail('lowerRatio','Ratio bounds must straddle 1, be ordered, and be within 0.01–100.');let sigma;if(raw.mode==='effect'){const cv=number(raw,'cv','Total between-subject CV');if(cv<.01||cv>2)fail('cv','Total CV must be 0.01–2 as a decimal (1%–200%).');sigma=Math.sqrt(Math.log1p(cv*cv));}else{sigma=positive(raw,'logSD','Log-scale SD');if(sigma<Math.sqrt(Math.log1p(.01**2))||sigma>Math.sqrt(Math.log1p(4)))fail('logSD','Log SD must correspond to a total CV between 0.01 and 2.');}return {lower:Math.log(lowerRatio)/sigma,upper:Math.log(upperRatio)/sigma,sigma};},
@@ -435,7 +435,7 @@
     name: 'ANCOVA · two groups with baseline covariates · approximate',
     unit: 'participants',
     totalLabel: 'TOTAL PARTICIPANTS',
-    defaults: { ...tDefaults, mean1: '105', mean2: '100', sd: '10', covariates: '1', correlation: '.5', ratio: '1' },
+    defaults: { ...tDefaults, mean1: '105', mean2: '100', sd: '10', covariates: '1', correlation: '0.5', ratio: '1' },
     modes: [
       { id: 'effect', label: 'Effect size d', fields: ['effect'] },
       { id: 'means', label: 'Means + SD', fields: ['mean1', 'mean2', 'sd'] },
@@ -449,7 +449,7 @@
       mean2: numeric('Group 2 mean', 'Use the same units as Group 1.'),
       sd: sdField('Outcome SD', 'Unadjusted within-group SD of the outcome.'),
       covariates: numeric('Number of covariates', '1–10 baseline covariates in the model; each costs one degree of freedom.', { min: 1, max: 10, step: '1' }),
-      correlation: numeric('Covariate–outcome correlation · ρ', 'With one baseline, its correlation with the outcome; with several, the multiple correlation R.', { min: 0, max: .99, presets: ['.3', '.5', '.7'] }),
+      correlation: numeric('Covariate–outcome correlation · ρ', 'With one baseline, its correlation with the outcome; with several, the multiple correlation R.', { min: 0, max: .99, presets: ['0.3', '0.5', '0.7'] }),
       ratio: numeric('Allocation · n₂ / n₁', 'Group 2 relative to Group 1.', { min: 0.1, max: 10, presets: ['0.5', '1', '2'] }),
     },
     design(raw) {
@@ -488,7 +488,7 @@
     totalLabel: 'TOTAL SUBJECTS',
     effectSymbol: 'ln(T/R)/σw',
     effectErrorField: 'gmr',
-    defaults: { mode: 'effect', gmr: '.95', cv: '.3', lowerRatio: '.8', upperRatio: '1.25', logDifference: String(Math.log(.95)), logSD: String(crossoverLogSD(.3)), alpha: '.05', power: '.8' },
+    defaults: { mode: 'effect', gmr: '0.95', cv: '0.3', lowerRatio: '0.8', upperRatio: '1.25', logDifference: String(Math.log(.95)), logSD: String(crossoverLogSD(.3)), alpha: '0.05', power: '0.8' },
     designFields: ['lowerRatio', 'upperRatio'],
     modes: [
       { id: 'effect', label: 'Geometric mean ratio + within-subject CV', fields: ['gmr', 'cv'] },
@@ -570,7 +570,7 @@
     unit: 'participants',
     totalLabel: 'TOTAL PARTICIPANTS',
     effectSymbol: 'p₁ − p₂',
-    defaults: { mode: 'proportions', p1: '.8', p2: '.8', reference: '.8', difference: '0', hypothesis: 'non-inferiority', benefit: 'higher', margin: '.1', alpha: '.025', power: '.8', ratio: '1' },
+    defaults: { mode: 'proportions', p1: '0.8', p2: '0.8', reference: '0.8', difference: '0', hypothesis: 'non-inferiority', benefit: 'higher', margin: '0.1', alpha: '0.025', power: '0.8', ratio: '1' },
     modes: [
       { id: 'proportions', label: 'Two proportions', fields: ['p1', 'p2'] },
       { id: 'difference', label: 'Reference + expected difference', fields: ['reference', 'difference'] },
@@ -580,12 +580,12 @@
     fields: {
       hypothesis: { label: 'Hypothesis', hint: 'Non-inferiority defends a loss of at most Δ; superiority by a margin must win by more than Δ (Δ = 0 is plain superiority).', options: [{ value: 'non-inferiority', label: 'Non-inferiority' }, { value: 'superiority', label: 'Superiority by a margin' }] },
       benefit: { label: 'Beneficial direction', hint: 'Response rates: higher is better. Event or failure rates: lower is better.', options: [{ value: 'higher', label: 'Higher proportion is better' }, { value: 'lower', label: 'Lower proportion is better' }] },
-      margin: numeric('Margin · Δ (risk difference)', 'Prespecified, in proportion units: 0.10 means 10 percentage points.', { min: 0, max: .5, presets: ['.05', '.1', '.15'] }),
+      margin: numeric('Margin · Δ (risk difference)', 'Prespecified, in proportion units: 0.10 means 10 percentage points.', { min: 0, max: .5, presets: ['0.05', '0.1', '0.15'] }),
       p1: numeric('Expected Test proportion · p₁', 'Strictly between 0 and 1.', { min: 0, max: 1 }),
       p2: numeric('Expected Reference proportion · p₂', 'Same event definition as Test.', { min: 0, max: 1 }),
       reference: numeric('Expected Reference proportion · p₂', 'Strictly between 0 and 1.', { min: 0, max: 1 }),
       difference: numeric('Expected difference · p₁ − p₂', 'Test minus Reference; zero is common for non-inferiority.', { min: -1, max: 1 }),
-      alpha: numeric('One-sided alpha', '0.025 is the usual regulatory one-sided level.', { min: .0001, max: .2, presets: ['.01', '.025', '.05'] }),
+      alpha: numeric('One-sided alpha', '0.025 is the usual regulatory one-sided level.', { min: .0001, max: .2, presets: ['0.01', '0.025', '0.05'] }),
       ratio: numeric('Allocation · n_R / n_T', 'Reference group size relative to Test.', { min: 0.1, max: 10, presets: ['0.5', '1', '2'] }),
     },
     design(raw) {
@@ -657,18 +657,18 @@
     missionLabel: 'CASE-DRIVEN MISSION',
     waitingAction: 'Find the case target.',
     effectSymbol: 'VE',
-    defaults: { mode: 'efficacy', ve: '.6', ve0: '.3', rr: '.4', rr0: '.7', alpha: '.025', power: '.9', ratio: '1', attackRate: '.02', nonEvaluable: '.1' },
+    defaults: { mode: 'efficacy', ve: '0.6', ve0: '0.3', rr: '0.4', rr0: '0.7', alpha: '0.025', power: '0.9', ratio: '1', attackRate: '0.02', nonEvaluable: '0.1' },
     modes: [
       { id: 'efficacy', label: 'Vaccine efficacy', fields: ['ve', 've0'] },
       { id: 'risk', label: 'Relative risk (1 − VE)', fields: ['rr', 'rr0'] },
     ],
     tuningFields: ['alpha', 'power', 'ratio'],
     fields: {
-      ve: numeric('Expected vaccine efficacy · VE', 'True efficacy you plan for: 0.60 means 60% fewer cases.', { min: 0, max: 1, presets: ['.5', '.6', '.8'] }),
-      ve0: numeric('Null efficacy · VE₀', '0 for plain superiority; 0.30 is the usual regulatory lower bound.', { min: -1, max: 1, presets: ['0', '.3'] }),
+      ve: numeric('Expected vaccine efficacy · VE', 'True efficacy you plan for: 0.60 means 60% fewer cases.', { min: 0, max: 1, presets: ['0.5', '0.6', '0.8'] }),
+      ve0: numeric('Null efficacy · VE₀', '0 for plain superiority; 0.30 is the usual regulatory lower bound.', { min: -1, max: 1, presets: ['0', '0.3'] }),
       rr: numeric('Expected relative risk · vaccine / placebo', 'Attack-rate ratio, 1 − VE.', { min: 0, max: 1 }),
       rr0: numeric('Null relative risk', '1 − VE₀; 0.70 for a 30% efficacy bound.', { min: 0, max: 2 }),
-      alpha: numeric('One-sided alpha', '0.025 one-sided is the usual regulatory level.', { min: .0001, max: .2, presets: ['.01', '.025', '.05'] }),
+      alpha: numeric('One-sided alpha', '0.025 one-sided is the usual regulatory level.', { min: .0001, max: .2, presets: ['0.01', '0.025', '0.05'] }),
       ratio: numeric('Allocation · vaccine : placebo', '1 means 1:1; 2 means twice as many vaccinated.', { min: .1, max: 10, presets: ['1', '2', '3'] }),
       attackRate: numeric('Placebo attack rate over follow-up', 'Proportion of placebo participants expected to become cases.', { min: 0, max: 1 }),
       nonEvaluable: numeric('Non-evaluable fraction', 'Proportion of enrolled not in the efficacy analysis.', { min: 0, max: .9 }),
@@ -695,7 +695,7 @@
     formula: 'VE = 1 − attack rate ratio',
     solve: (stats, p) => stats.vaccineSampleSize(p),
     powerAt: (stats, p, n) => stats.vaccinePowerAt({ ...p, n }),
-    allocations: r => [['Win if vaccine cases ≤', r.critical], ['Placebo cases at least', r.total - r.critical]],
+    allocations: r => [['Vaccine cases at most', r.critical], ['Placebo cases at least', r.total - r.critical]],
     dropout: false,
     extraTitle: 'FROM CASES TO PARTICIPANTS',
     extraFields: ['attackRate', 'nonEvaluable'],
@@ -740,7 +740,7 @@
     unit: 'participants',
     totalLabel: 'TOTAL PARTICIPANTS',
     effectSymbol: 'RR',
-    defaults: { mode: 'ratio', rate0: '.8', rateRatio: '.75', rate0b: '.8', rate1: '.6', dispersion: '.5', followUp: '1', nullRatio: '1', alpha: '.025', power: '.9', ratio: '1' },
+    defaults: { mode: 'ratio', rate0: '0.8', rateRatio: '0.75', rate0b: '0.8', rate1: '0.6', dispersion: '0.5', followUp: '1', nullRatio: '1', alpha: '0.025', power: '0.9', ratio: '1' },
     modes: [
       { id: 'ratio', label: 'Control rate + rate ratio', fields: ['rate0', 'rateRatio'] },
       { id: 'rates', label: 'Two event rates', fields: ['rate0b', 'rate1'] },
@@ -749,13 +749,13 @@
     tuningFields: ['alpha', 'power', 'ratio'],
     fields: {
       rate0: numeric('Control event rate', 'Events per participant per time unit, e.g. 0.8 exacerbations per year.', { min: 0 }),
-      rateRatio: numeric('Expected rate ratio · treatment / control', 'Below 1 means fewer events on treatment.', { min: .01, max: 100, presets: ['.6', '.75', '.85'] }),
+      rateRatio: numeric('Expected rate ratio · treatment / control', 'Below 1 means fewer events on treatment.', { min: .01, max: 100, presets: ['0.6', '0.75', '0.85'] }),
       rate0b: numeric('Control event rate', 'Events per participant per time unit.', { min: 0 }),
       rate1: numeric('Treatment event rate', 'Same time unit as control.', { min: 0 }),
-      dispersion: numeric('Dispersion · k', 'Variance = μ + kμ². 0 is Poisson; 0.3–1 is common for exacerbations.', { min: 0, max: 20, presets: ['0', '.5', '1'] }),
+      dispersion: numeric('Dispersion · k', 'Variance = μ + kμ². 0 is Poisson; 0.3–1 is common for exacerbations.', { min: 0, max: 20, presets: ['0', '0.5', '1'] }),
       followUp: numeric('Follow-up per participant', 'Common exposure time, in the rate’s time unit.', { min: 0 }),
       nullRatio: numeric('Null rate ratio · RR₀', '1 for superiority; above 1 (e.g. 1.15) for non-inferiority.', { min: .01, max: 100, presets: ['1', '1.15', '1.25'] }),
-      alpha: numeric('One-sided alpha', '0.025 one-sided matches a two-sided 0.05 superiority test.', { min: .0001, max: .2, presets: ['.01', '.025', '.05'] }),
+      alpha: numeric('One-sided alpha', '0.025 one-sided matches a two-sided 0.05 superiority test.', { min: .0001, max: .2, presets: ['0.01', '0.025', '0.05'] }),
       ratio: numeric('Allocation · n_treatment / n_control', 'Treatment group size relative to control.', { min: .1, max: 10, presets: ['0.5', '1', '2'] }),
     },
     design(raw) {
@@ -806,8 +806,8 @@
   const spendingNames = Object.fromEntries(spendingOptions.map(o => [o.value, o.label]));
   const sequentialFields = {
     looks: { label: 'Number of looks', hint: 'Interim analyses plus the final one.', options: [{ value: '2', label: '2 looks · one interim' }, { value: '3', label: '3 looks · two interims' }] },
-    t1: numeric('First interim · information fraction', 'Share of the final information at the first look, e.g. 0.5.', { min: .05, max: .95, presets: ['.33', '.5', '.67'] }),
-    t2: numeric('Second interim · information fraction', 'Used only with three looks. Must lie after the first.', { min: .1, max: .95, presets: ['.67', '.75'] }),
+    t1: numeric('First interim · information fraction', 'Share of the final information at the first look, e.g. 0.5.', { min: .05, max: .95, presets: ['0.33', '0.5', '0.67'] }),
+    t2: numeric('Second interim · information fraction', 'Used only with three looks. Must lie after the first.', { min: .1, max: .95, presets: ['0.67', '0.75'] }),
     spending: { label: 'Efficacy spending function', hint: 'How the one-sided alpha is spent across looks.', options: spendingOptions },
     spendingParameter: numeric('Efficacy spending parameter', 'Shown only for the power family (ρ) and Hwang–Shih–DeCani (γ).', { min: -40, max: 40 }),
     futilitySpending: { label: 'Futility (beta) spending function', hint: 'How the type II error is spent on futility stops.', options: spendingOptions },
@@ -815,7 +815,7 @@
     effect: numeric('Standardized effect · d', 'Two equal groups, normal outcome: mean difference ÷ SD.', { min: -5, max: 5 }),
     hazardRatio: numeric('Hazard ratio', 'Event-driven design with equal allocation; the size is a number of events.', { min: .1, max: 10 }),
     fixedSize: numeric('Fixed-design sample size', 'From any fighter: the size that gives your target power without interim looks.', { min: 1 }),
-    alpha: numeric('One-sided alpha', '0.025 one-sided is the regulatory default.', { min: .0001, max: .2, presets: ['.01', '.025', '.05'] }),
+    alpha: numeric('One-sided alpha', '0.025 one-sided is the regulatory default.', { min: .0001, max: .2, presets: ['0.01', '0.025', '0.05'] }),
   };
   const sequentialBase = {
     marginPlanning: true,
@@ -916,7 +916,7 @@
     },
     assumptions: 'One-sided testing of a normally distributed statistic whose information grows in proportion to the sample size or event count (canonical joint distribution; Jennison and Turnbull 2000). Effect-size mode plans two equal groups with a known-variance normal approximation; hazard-ratio mode plans events for a log-rank test with equal allocation (Schoenfeld). Fixed mode takes a fixed-design size from another fighter and assumes it has exactly the target power. Information fractions are planned; analyses that happen at other times need the boundaries recomputed by the same spending function.',
   };
-  const defaultsSequential = { mode: 'effect', effect: '.5', hazardRatio: '.7', fixedSize: '128', looks: '3', t1: '.5', t2: '.75', spending: 'obf', spendingParameter: '-4', alpha: '.025', power: '.9' };
+  const defaultsSequential = { mode: 'effect', effect: '0.5', hazardRatio: '0.7', fixedSize: '128', looks: '3', t1: '0.5', t2: '0.75', spending: 'obf', spendingParameter: '-4', alpha: '0.025', power: '0.9' };
   register({
     ...sequentialBase,
     id: 'gsd-efficacy',

@@ -151,7 +151,7 @@ span.j-thumb.j-silhouette i{width:80%;height:86%}
 .j-ring.awaiting .j-life.you .j-life-bar i{background:repeating-linear-gradient(135deg,#e9b23a 0 6px,#6b4e1c 6px 12px)}
 .j-ring.stale .j-life-bar i{opacity:.45}
 .j-clock{min-width:72px;text-align:center;border:2px solid #f3ead2;background:#05070bdd;padding:6px 10px;box-shadow:3px 3px 0 #000}
-.j-clock small{display:block;font:8px var(--arcade);color:var(--j-rose)}
+.j-clock small{display:block;font:bold 12px/1 var(--mono);color:var(--j-rose)}
 .j-clock b{font:15px/1.6 var(--arcade);color:var(--j-gold);font-weight:normal}
 .j-ring-floor{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:end;padding:6px 24px 0}
 .j-corner{position:relative;display:grid;align-items:end}

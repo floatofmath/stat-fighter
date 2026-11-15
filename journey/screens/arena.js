@@ -154,7 +154,7 @@
       <div class="j-result-actions"><button class="j-button" data-copy="result" ${stale ? 'disabled' : ''}>COPY RESULT</button><button class="j-button" data-copy="link" ${stale ? 'disabled' : ''}>COPY LINK</button></div>
       <p id="j-copy-status" class="j-small" role="status"></p><textarea id="j-manual-copy" aria-label="Result or link to copy" readonly hidden></textarea>`;
   }
-  const dropoutField = () => `<div class="j-field"><div class="j-field-label"><label for="j-dropout">Dropout allowance</label>${kit.helpButton('dropout', 'Help with dropout allowance')}</div>${numberInput('id="j-dropout" name="dropout" data-extra="dropout" aria-describedby="j-hint-dropout"', { min: 0, max: .9 }, kit.state.draft.dropout ?? '0', 'dropout allowance')}<small id="j-hint-dropout">Proportion expected to drop out, e.g. 0.1. Shown separately; the result above is unchanged.</small><div class="j-presets" aria-label="Dropout presets">${['0', '.1', '.2'].map(v => `<button type="button" data-preset="dropout:${v}" aria-label="Set dropout to ${v}">${v}</button>`).join('')}</div></div>`;
+  const dropoutField = () => `<div class="j-field"><div class="j-field-label"><label for="j-dropout">Dropout allowance</label>${kit.helpButton('dropout', 'Help with dropout allowance')}</div>${numberInput('id="j-dropout" name="dropout" data-extra="dropout" aria-describedby="j-hint-dropout"', { min: 0, max: .9 }, kit.state.draft.dropout ?? '0', 'dropout allowance')}<small id="j-hint-dropout">Proportion expected to drop out, e.g. 0.1. Shown separately; the result above is unchanged.</small><div class="j-presets" aria-label="Dropout presets">${['0', '0.1', '0.2'].map(v => `<button type="button" data-preset="dropout:${v}" aria-label="Set dropout to ${v}">${v}</button>`).join('')}</div></div>`;
 
   // ---- Power curve and what-if table, from the method's own fixed-size evaluator ----
   function curveSvg(points, p, r) {
@@ -332,12 +332,12 @@
     const m = kit.method, s = kit.state, raw = Object.fromEntries(new FormData(form));
     for (const key of Object.keys(m.defaults)) if (Object.hasOwn(raw, key)) s.draft[key] = raw[key];
     if (s.outcome) s.stale = true;
-    delete s.kept; kit.save(); history.replaceState(null, '', kit.urlFor(s.draft));
+    delete s.kept; kit.save(); kit.replaceUrl(kit.urlFor(s.draft));
   }
   function updateExtra(input) {
     const s = kit.state;
     s.draft[input.dataset.extra] = input.value; delete s.kept; kit.save();
-    history.replaceState(null, '', kit.urlFor(s.outcome && !s.stale ? tableRaw() : s.draft, Boolean(s.outcome && !s.stale)));
+    kit.replaceUrl(kit.urlFor(s.outcome && !s.stale ? tableRaw() : s.draft, Boolean(s.outcome && !s.stale)));
     const out = kit.root.querySelector('#j-extras-out');
     if (out) out.innerHTML = extrasOut();
   }
@@ -356,13 +356,13 @@
     form.onchange = event => {
       if (event.target.name === 'mode') {
         const mode = event.target.value; syncDraft(form); kit.state.draft.mode = mode; kit.save();
-        history.replaceState(null, '', kit.urlFor(kit.state.draft));
+        kit.replaceUrl(kit.urlFor(kit.state.draft));
         kit.rerender();
         kit.root.querySelector(`input[name="mode"][value="${mode}"]`)?.focus();
       } else if (m().refreshOn?.includes(event.target.name)) {
         // A choice that shows, hides or relabels other design fields (Bell and Towel's ρ / γ).
         const name = event.target.name; syncDraft(form); m().fieldChanged?.(name, kit.state.draft); kit.save();
-        history.replaceState(null, '', kit.urlFor(kit.state.draft));
+        kit.replaceUrl(kit.urlFor(kit.state.draft));
         kit.root.querySelector('.j-design-fields').innerHTML = designFields(); derived();
         kit.root.querySelector(`#j-${name}`)?.focus();
       } else {
@@ -391,7 +391,7 @@
       try {
         const parameters = method.normalize(s.draft), result = method.solve(stats, parameters, method.id);
         s.outcome = { parameters, result, raw: kit.coreDraft(method, s.draft) }; s.stale = false; kit.routeError = '';
-        history.replaceState(null, '', kit.urlFor(tableRaw(), true));
+        kit.replaceUrl(kit.urlFor(tableRaw(), true));
         kit.recordScore({ id: method.id, name: kit.fighter.name, total: result.total, unit: method.unit, power: result.power, at: new Date().toISOString().slice(0, 10), link: kit.urlFor(tableRaw(), true) });
         refreshResult(); kit.refreshHud(); kit.emit('calculationSucceeded');
         // At any width: show the ring for the fight if it is off screen, then bring the result

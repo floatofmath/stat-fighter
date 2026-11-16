@@ -58,3 +58,7 @@ Correlation follows the explicitly approximate bias-corrected Fisher-z / central
 ## Training Room conversions
 
 `Rscript tests/reference/generate-convert.R` regenerates `convert.csv` (54 cases) and `convert-provenance.txt` using base R only: log-normal scale identities, SD recovery from standard errors and t intervals (`qt`), pooled SDs, IQR/1.349, paired-difference SDs, `pnorm(d/√2)`, odds/risk conversions, Weibull and exponential survival (`qweibull`, `pweibull`) and Poisson probabilities (`ppois`). `tests/convert.test.mjs` compares every row with `journey/convert.js` to 1e-9 relative, alongside hand-checked anchors and round trips between input modes.
+
+## R code panels
+
+`npm run check:r` (`scripts/check-rcode.mjs`) runs the verify snippet from `journey/rcode.js` for 88 cases and compares it with the app: *exact* means the same N and power within 1e-4 (pwr, PowerTOST, gsDesign for Parry and Harbor, MKpower `approach = 2` for Scatter, MESS for Welch, base R for Jab); *close* means N within 1, power within 0.01 and boundaries within 1e-3 (gsDesign for Bell and Towel; observed agreement is about 1e-6); *formula* means a base-R restatement plus a simulation (Anchor, Rook, Echo, and Scatter with a null rate ratio other than 1). Noether's formula is about 3 percentage points conservative for Rook under a normal shift, so his simulation tolerance is 0.04 instead of 0.02. Each analysis snippet is also run on simulated data. `rcode-provenance.txt` records the package versions and the full table. `tests/rcode.test.mjs` checks the snippets' shape without R.

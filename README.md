@@ -61,9 +61,20 @@ The Training Room (`#convert`, from the title menu or the arena) converts what a
 
 Fields such as an SD, a CV, a hazard ratio or a dispersion carry a `convert ⇄` link. It opens the matching tool, and **USE IN … ARENA** writes the converted value back into that fighter's field (an existing result is marked stale). Each tool states its model assumption under the table. The maths is in `journey/convert.js` and is cross-checked against base R (`tests/reference/generate-convert.R`).
 
-## Protocol text
+## Protocol text and R code
 
 After a fight, the arena offers a **protocol text** for the sample size section of a protocol or statistical analysis plan. It restates the hypothesis and test, the assumptions, the per-group and total numbers, target and achieved power, a method-specific caveat, the dropout allowance if one is entered, and the software (Stat Fighter ’89 and its version). Everything the app cannot know is left in [brackets]. Every number in it is one the arena already shows. Templates are in `journey/protocol.js`.
+
+Two more panels give **R code**. *Verify this result* recomputes the sample size and the power at the app's own sizes with an independent CRAN package (pwr, PowerTOST, gsDesign, MKpower or MESS), using the app's rounding rule. *Analyse the data* is the matching analysis for a data frame called `dat`. Each panel states how close the check is. For three fighters (Anchor, Rook, Echo) no package implements the app's model, so the code restates the formula in base R and adds a simulation. The protocol text mentions the R appendix only when a package check reproduces the result. Snippets are in `journey/rcode.js`.
+
+Every snippet is run against R before release:
+
+```sh
+Rscript -e 'install.packages(c("pwr", "PowerTOST", "gsDesign", "MKpower", "MESS"), repos = "https://cloud.r-project.org")'
+npm run check:r
+```
+
+`npm run check:r` runs 88 cases (every input mode, alpha 0.01 with 90% power, unequal allocation and direction variants), runs each analysis snippet on simulated data, and writes the table to `tests/reference/rcode-provenance.txt`. It needs a local R installation and is not part of `npm test`.
 
 ## Run locally
 

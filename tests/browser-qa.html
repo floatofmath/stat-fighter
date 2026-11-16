@@ -113,6 +113,7 @@ document.querySelector('#run').onclick=async()=>{
  // ---- v1.1: Training Room, protocol text, Matchmaker, rotating lines ----
  await load('#arena?v=1&test=tost-crossover&run=1');check(!!$('.j-protocol')&&$('#j-protocol-text').textContent.includes(score())&&$('#j-protocol-text').textContent.includes('[pharmacokinetic parameter]'),'protocol text is present after a fight and contains the score');
  check($('#j-protocol-text').textContent.trim().endsWith(win().StatFighter.content.disclaimer.copy),'protocol text ends with the disclaimer');
+ check($('#j-r-verify').textContent.includes('library(PowerTOST)')&&$('#j-r-verify').textContent.includes('App result: N = '+score())&&$('#j-r-analysis').textContent.includes('lm(log(y)')&&$('.j-rcode').textContent.includes('same sample size and power'),'R code blocks show verify and analysis code with a truthful status');
  $('a.j-convert-link[href*="tost-crossover.cv"]').click();await delay(150);check(win().location.hash.startsWith('#convert')&&$('#j-convert-title').textContent==='LOG-NORMAL SCALES','convert link opens the log-normal tool');
  $('input[name="convert-mode"][value="mean-sd"]').click();await delay(80);const cset=(n,v)=>{const el=$('#j-c-'+n);el.value=v;el.dispatchEvent(new (win().Event)('input',{bubbles:true}))};cset('mean','100');cset('sd','25');
  check(!!$('[data-use="cv"]')&&$('[data-use="cv"]').textContent.includes('SWITCH'),'Training Room offers USE IN SWITCH’S ARENA');$('[data-use="cv"]').click();await delay(150);

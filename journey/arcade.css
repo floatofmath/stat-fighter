@@ -370,7 +370,7 @@ span.j-thumb.j-silhouette i{width:80%;height:86%}
 }
 
 /* ---- Protocol text and R code ---- */
-.j-protocol pre,.j-rcode pre{white-space:pre-wrap;font:13px/1.7 ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;color:#d8dccf;background:#070c12;border:1px solid #293f4a;padding:12px;margin:10px 0;max-height:420px;overflow:auto}
+.j-protocol pre{white-space:pre-wrap;font:13px/1.7 ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;color:#d8dccf;background:#070c12;border:1px solid #293f4a;padding:12px;margin:10px 0;max-height:420px;overflow:auto}
 .j-protocol pre:focus-visible,.j-rcode pre:focus-visible{outline:2px solid #ecd270;outline-offset:2px}
 .j-protocol .j-button,.j-rcode .j-button{font-size:7px;justify-content:center;width:100%}
 
@@ -409,3 +409,4 @@ span.j-thumb.j-silhouette i{width:80%;height:86%}
 .j-attract-demo{position:absolute;top:10px;right:10px;font:9px var(--arcade);color:#ff5d73;background:#05070bdd;padding:5px 7px;border:1px solid #ff5d73;animation:demo-blink 1s steps(2,start) infinite}
 @keyframes demo-blink{50%{visibility:hidden}}
 .journey-active.no-effects .j-attract-demo{animation:none}
+.j-rcode pre{white-space:pre;overflow:auto;font:12px/1.6 ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;color:#d8dccf;background:#070c12;border:1px solid #293f4a;padding:12px;margin:10px 0;max-height:420px}

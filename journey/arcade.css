@@ -181,7 +181,7 @@ span.j-thumb.j-silhouette i{width:80%;height:86%}
 .j-ring-caption h1{font:clamp(14px,2vw,20px)/1.6 var(--arcade);color:#e9e0ce;margin:0;text-transform:uppercase;overflow-wrap:anywhere}
 .j-ring-caption p{margin:2px 0;font-size:12px;color:#95abb3}
 .j-ring-caption .j-kicker{font-size:7px;margin:0}
-.j-ring-caption nav{display:flex;gap:16px;flex-wrap:wrap}
+.j-ring-caption nav{display:flex;gap:0 16px;flex-wrap:wrap}
 .j-console-heading h2{color:var(--accent)}
 
 /* Corner advice */
@@ -339,3 +339,32 @@ span.j-thumb.j-silhouette i{width:80%;height:86%}
 .footer-disclaimer{font:7px/1.9 var(--arcade);color:var(--j-gold);letter-spacing:0}
 #journey-warning p:not(.j-kicker){font-size:14px;color:#c9d0d0}
 #journey-warning h2{color:var(--j-rose)}
+
+/* ---- Training Room ---- */
+.j-convert{display:grid;grid-template-columns:minmax(200px,.6fr) minmax(0,1.6fr);gap:22px;padding:0 32px 26px;align-items:start}
+.j-convert-tools{display:grid;gap:8px}
+.j-convert-tools .j-button{font-size:8px}
+.j-convert-panel{padding:23px}
+.j-convert-mode>div{flex-wrap:wrap}
+.j-convert-mode label{flex:1 1 150px}
+.j-convert-mode span{font-size:7px}
+.j-convert-return{font-size:12px;color:#d6cda9;border-left:2px solid var(--j-gold);padding:4px 0 4px 10px}
+.j-convert-table th{text-align:left;font-weight:normal;color:#b7c8cd}
+.j-convert-table td{font:16px/1.4 ui-monospace,monospace;color:#e7dcb7}
+.j-convert-table tr.current th,.j-convert-table tr.current td{color:var(--j-gold)}
+.j-convert-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}
+.j-convert-actions .j-button{font-size:7px;min-height:40px;padding:8px 10px}
+.j-convert-note{margin-top:10px}
+.j-cnum{display:flex;align-items:stretch;min-width:0}
+.j-cnum input{flex:1 1 auto;min-width:0;appearance:textfield;-moz-appearance:textfield;text-align:center}
+.j-cnum input::-webkit-inner-spin-button,.j-cnum input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.j-cnum .j-step:first-child{border-right:0}.j-cnum .j-step:last-child{border-left:0}
+.j-convert-link{font-size:11px;min-height:44px;white-space:nowrap}
+#j-convert-copy{width:100%;min-height:60px;background:#070c12;color:#d2d9c8}
+@media(max-width:760px){
+  .j-convert{grid-template-columns:1fr;padding:0 16px 18px;gap:14px}
+  .j-convert-tools{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .j-convert-tools .j-button{font-size:7px;padding:10px 8px;min-height:44px}
+  .j-convert-panel{padding:14px}
+  .j-convert-table td{font-size:14px}
+}

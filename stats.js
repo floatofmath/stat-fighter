@@ -891,7 +891,9 @@
     return { ...sequentialPowerAt({ ...p, n }), design: d };
   }
 
-  const stats = { version: '6', binomialCdf, vaccinePowerAt, vaccineSampleSize, rateRatioPowerAt, rateRatioSampleSize, spending, sequentialDesign, sequentialPowerAt, sequentialSampleSize, anovaPowerAt, welchPowerAt, welchSampleSize, ancovaPowerAt, ancovaSampleSize, crossoverPowerAt, crossoverSampleSize, proportionsMarginPowerAt, proportionsMarginSampleSize, restrictedProportions, scanSampleSize, eventProbability, normalCritical, marginSampleSize, marginPowerAt, normalCdf: x => normalTail(-x), expansionSampleSize, expansionPowerAt, limits, sampleSize, anovaSampleSize, tPowerAt, correlationSampleSize, correlationPowerAt, regressionSampleSize, regressionPowerAt };
+  // Two-sided t quantile helper for the Training Room: the upper alphaTail critical value with df degrees of freedom.
+  const tCritical = (alphaTail, df) => criticalT(alphaTail, chiSquareQuadrature(df));
+  const stats = { version: '6', tCritical, binomialCdf, vaccinePowerAt, vaccineSampleSize, rateRatioPowerAt, rateRatioSampleSize, spending, sequentialDesign, sequentialPowerAt, sequentialSampleSize, anovaPowerAt, welchPowerAt, welchSampleSize, ancovaPowerAt, ancovaSampleSize, crossoverPowerAt, crossoverSampleSize, proportionsMarginPowerAt, proportionsMarginSampleSize, restrictedProportions, scanSampleSize, eventProbability, normalCritical, marginSampleSize, marginPowerAt, normalCdf: x => normalTail(-x), expansionSampleSize, expansionPowerAt, limits, sampleSize, anovaSampleSize, tPowerAt, correlationSampleSize, correlationPowerAt, regressionSampleSize, regressionPowerAt };
   if (typeof module === 'undefined') {
     globalThis.StatFighter = { stats };
   } else {

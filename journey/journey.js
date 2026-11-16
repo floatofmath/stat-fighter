@@ -4,7 +4,7 @@
 {
   const kit = globalThis.StatFighter.kit;
   const { methods, content, stats, root } = kit;
-  const stages = ['title', 'world', 'continent', 'select', 'profile', 'arena', 'scores', 'setup', 'results'];
+  const stages = ['title', 'world', 'continent', 'select', 'profile', 'arena', 'scores', 'convert', 'setup', 'results'];
   let current = null;
 
   // ---- Dialogs. Modal dialogs centre in the viewport; closing returns focus and scroll position. ----

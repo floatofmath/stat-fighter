@@ -16,7 +16,7 @@ function worker(scope='https://example.test/arcade/') {
   return { listeners, dispatch, caches, cache, deleted, requests, fetched, claimed:()=>claimed };
 }
 test('offline install contains every real shell and journey asset, bypassing HTTP cache', async()=>{
- const w=worker();await w.dispatch('install');assert.equal(w.requests.length,91);
+ const w=worker();await w.dispatch('install');assert.equal(w.requests.length,93);
  // Every script and stylesheet that index.html loads must be precached.
  const page=readFileSync(new URL('../index.html',import.meta.url),'utf8');for(const [,file] of page.matchAll(/(?:src|href)="(\.\/[^"]+\.(?:js|css))"/g))assert.ok(w.requests.some(r=>r.url.endsWith(file.slice(1))),file);
  for(const r of w.requests){assert.equal(r.cache,'reload');assert.ok(existsSync(new URL('..'+new URL(r.url).pathname.replace('/arcade',''),import.meta.url)),r.url);}

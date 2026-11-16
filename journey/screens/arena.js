@@ -5,6 +5,7 @@
 {
   const kit = globalThis.StatFighter.kit;
   const { content, stats, escape, fmt, pct } = kit;
+  const convert = globalThis.StatFighter.convert;
   let arenaError = '';
   let fightTimers = [];
   let finishFight = null;
@@ -31,7 +32,8 @@
     const control = f.options
       ? `<select ${attrs}>${f.options.map(option => `<option value="${escape(option.value)}" ${value === option.value ? 'selected' : ''}>${escape(option.label)}</option>`).join('')}</select>`
       : numberInput(attrs, f, value, f.label);
-    return `<div class="j-field"><div class="j-field-label"><label for="j-${id}">${f.label}</label>${kit.helpButton(id, `Help with ${f.label}`)}</div>${control}<small id="j-hint-${id}">${f.hint}</small>${f.presets ? `<div class="j-presets" aria-label="${f.label} presets">${f.presets.map(v => `<button type="button" data-preset="${id}:${v}" aria-label="Set ${f.label} to ${v}">${v}</button>`).join('')}</div>` : ''}</div>`;
+    const link = convert?.links[m.id]?.[id], convertLink = link ? `<a class="j-text-link j-convert-link" href="#convert?${new URLSearchParams({ tool: link[0], to: `${m.id}.${id}` })}" aria-label="Convert a value for ${escape(f.label)} in the Training Room">convert ⇄</a>` : '';
+    return `<div class="j-field"><div class="j-field-label"><label for="j-${id}">${f.label}</label>${kit.helpButton(id, `Help with ${f.label}`)}</div>${control}<small id="j-hint-${id}">${f.hint}</small>${convertLink}${f.presets ? `<div class="j-presets" aria-label="${f.label} presets">${f.presets.map(v => `<button type="button" data-preset="${id}:${v}" aria-label="Set ${f.label} to ${v}">${v}</button>`).join('')}</div>` : ''}</div>`;
   }
   const designFields = () => kit.method.designFields.map(id => field(id)).join('');
   function effectFields() {
@@ -289,7 +291,7 @@
           </div>
           <div class="j-ring-caption">
             <div><p class="j-kicker">${escape(f.stage.toUpperCase())} / ${m.missionLabel ?? 'SAMPLE SIZE MISSION'}</p><h1 id="main-heading" tabindex="-1">${escape(f.name)}’s arena</h1><p>${escape(m.name)}</p></div>
-            <nav aria-label="Arena navigation"><a href="${kit.path('profile')}" class="j-text-link">← Challenge card</a><a href="#select" class="j-text-link">Switch fighter</a></nav>
+            <nav aria-label="Arena navigation"><a href="${kit.path('profile')}" class="j-text-link">← Challenge card</a><a href="#select" class="j-text-link">Switch fighter</a><a href="#convert" class="j-text-link">Training Room</a></nav>
           </div>
         </section>
         <div class="j-arena-layout">

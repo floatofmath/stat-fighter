@@ -43,6 +43,28 @@ Portraits come in three sizes: full size in `assets/` (precached for offline use
 
 The screens are classic scripts in `journey/screens/`, sharing state through `journey/core.js`; `journey/journey.js` is the router.
 
+Not sure which fighter you need? **Find my fighter** on the title screen opens the Matchmaker: up to three questions (what you want to show, the kind of outcome, the design) lead to a fighter, or to Quick Select when no fighter covers the combination. The rules live in `content.matchmaker` and are tested so that every fighter is reachable.
+
+Left alone for 20 seconds, the title screen runs an attract-mode demo through the roster. It never runs with Effects off or reduced motion, and any key or tap stops it.
+
+## Training Room
+
+The Training Room (`#convert`, from the title menu or the arena) converts what a paper reports into what a fighter asks for. Nothing in it is a sample size. Seven tools:
+
+- **Log-normal scales:** arithmetic mean and SD, CV, geometric mean and SD, log-scale μ and σ.
+- **Standard deviation:** from a CV, a standard error, a confidence interval of a mean (t quantile), two group SDs (pooled) or an IQR (normal data only).
+- **Paired differences:** SD of differences from two SDs and their correlation, and dz.
+- **Effect sizes:** Cohen's d, probability of superiority Φ(d/√2), R² ↔ f², η² → f.
+- **Risks and ratios:** treatment risk from an odds ratio or risk ratio, risk difference, NNT, Cohen's h.
+- **Survival and hazards:** hazard ratio, medians and survival at a time point, exponential or Weibull with a common shape.
+- **Rates and counts:** rate ↔ probability over a period, negative binomial dispersion k ↔ R's θ, vaccine efficacy ↔ relative risk.
+
+Fields such as an SD, a CV, a hazard ratio or a dispersion carry a `convert ⇄` link. It opens the matching tool, and **USE IN … ARENA** writes the converted value back into that fighter's field (an existing result is marked stale). Each tool states its model assumption under the table. The maths is in `journey/convert.js` and is cross-checked against base R (`tests/reference/generate-convert.R`).
+
+## Protocol text
+
+After a fight, the arena offers a **protocol text** for the sample size section of a protocol or statistical analysis plan. It restates the hypothesis and test, the assumptions, the per-group and total numbers, target and achieved power, a method-specific caveat, the dropout allowance if one is entered, and the software (Stat Fighter ’89 and its version). Everything the app cannot know is left in [brackets]. Every number in it is one the arena already shows. Templates are in `journey/protocol.js`.
+
 ## Run locally
 
 Any static file server works. From the project root:

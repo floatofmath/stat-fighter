@@ -31,8 +31,14 @@
   let acknowledged = false;
   try { acknowledged = localStorage.getItem(ackKey) === '1'; } catch { /* storage blocked: show it every visit */ }
   if (!acknowledged && !/[?&]run=1(&|$)/.test(location.hash)) {
-    warning.addEventListener('close', () => { try { localStorage.setItem(ackKey, '1'); } catch { /* not remembered */ } }, { once: true });
     warning.showModal();
+    // Watch the open attribute, as the router does: the close event is not dispatched reliably.
+    const observer = new MutationObserver(() => {
+      if (warning.open) return;
+      observer.disconnect();
+      try { localStorage.setItem(ackKey, '1'); } catch { /* not remembered */ }
+    });
+    observer.observe(warning, { attributes: true, attributeFilter: ['open'] });
   }
   if (location.protocol === 'file:') {
     document.querySelector('#install-info').hidden = true;

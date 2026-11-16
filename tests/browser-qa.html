@@ -21,7 +21,7 @@ document.querySelector('#run').onclick=async()=>{
  const ackKey='stat-fighter:ack:v1',savedAck=localStorage.getItem(ackKey);
  const keys=['stat-fighter:journey:v2','stat-fighter:journey:v1','stat-fighter:scores:v1'],saved=Object.fromEntries(keys.map(k=>[k,localStorage.getItem(k)]));
  try{
- keys.forEach(k=>localStorage.removeItem(k));localStorage.removeItem(ackKey);await load('#title');check($('#journey-warning').open,'first-run warning appears when not yet acknowledged');$('#journey-warning').close();check(localStorage.getItem(ackKey)==='1','closing the warning remembers it');await load('#title');check(!$('#journey-warning').open,'acknowledged warning does not return');
+ keys.forEach(k=>localStorage.removeItem(k));localStorage.removeItem(ackKey);await load('#title');check($('#journey-warning').open,'first-run warning appears when not yet acknowledged');$('#journey-warning').close();await delay(50);check(localStorage.getItem(ackKey)==='1','closing the warning remembers it');await load('#title');check(!$('#journey-warning').open,'acknowledged warning does not return');
  localStorage.removeItem(ackKey);await load('#arena?v=1&test=two-sample&run=1');check(!$('#journey-warning').open&&$('.j-disclaimer')?.textContent.includes('NO WARRANTY'),'shared result links skip the warning and show the short notice');localStorage.setItem(ackKey,'1');
  await setEffects(false);
  // ---- Title, world map and second-click entry ----
@@ -110,6 +110,17 @@ document.querySelector('#run').onclick=async()=>{
   if(pending.includes(id)){check(!!$('.j-card-portrait.j-silhouette'),id+' shows a silhouette until its art arrives');await go('#select');check(!tiles().includes(id),id+' stays out of Quick Select until its art arrives');}
   else{await go('#select');check(tiles().length===22,'Quick Select lists all twenty-two fighters');$('[data-tile="'+id+'"]').click();$('[data-tile="'+id+'"]').click();await delay(120);check($('.j-nameplate h2').textContent===win().StatFighter.content.fighters[id].name,id+' card reachable from Quick Select');}
  }
+ // ---- v1.1: Training Room, protocol text, Matchmaker, rotating lines ----
+ await load('#arena?v=1&test=tost-crossover&run=1');check(!!$('.j-protocol')&&$('#j-protocol-text').textContent.includes(score())&&$('#j-protocol-text').textContent.includes('[pharmacokinetic parameter]'),'protocol text is present after a fight and contains the score');
+ check($('#j-protocol-text').textContent.trim().endsWith(win().StatFighter.content.disclaimer.copy),'protocol text ends with the disclaimer');
+ $('a.j-convert-link[href*="tost-crossover.cv"]').click();await delay(150);check(win().location.hash.startsWith('#convert')&&$('#j-convert-title').textContent==='LOG-NORMAL SCALES','convert link opens the log-normal tool');
+ $('input[name="convert-mode"][value="mean-sd"]').click();await delay(80);const cset=(n,v)=>{const el=$('#j-c-'+n);el.value=v;el.dispatchEvent(new (win().Event)('input',{bubbles:true}))};cset('mean','100');cset('sd','25');
+ check(!!$('[data-use="cv"]')&&$('[data-use="cv"]').textContent.includes('SWITCH'),'Training Room offers USE IN SWITCH’S ARENA');$('[data-use="cv"]').click();await delay(150);
+ check(win().location.hash==='#arena?test=tost-crossover'&&$('#j-cv').value==='0.25'&&!!$('.j-stale'),'USE writes CV 0.25 into Switch’s arena and marks the old result stale');
+ await go('#convert?tool=lognormal&mode=mean-sd&mean=100&sd=-1');check(!!$('#j-convert-out [role=alert]'),'Training Room shows an alert for invalid input instead of throwing');
+ await go('#title');[...all('.j-menu a')].find(a=>a.textContent.includes('FIND MY FIGHTER')).click();await delay(120);check(win().location.hash==='#match','title menu opens the Matchmaker');
+ const pickOption=text=>[...all('.j-match-option')].find(a=>a.textContent.includes(text)).click();pickOption('A difference');await delay(100);pickOption('A measurement');await delay(100);pickOption('Two independent groups');await delay(120);check($('#j-match-q').textContent==='Maverick','Matchmaker: difference → measurement → two groups lands on Maverick');
+ win().history.back();await delay(120);check($('#j-match-q').textContent==='What is the design?','browser Back steps back one Matchmaker question');
  // ---- Hi-score table ----
  await load('#scores');const rows=all('.j-score-table tbody tr').length;check(rows===10,'hi-score table keeps the last ten plans');check($('.j-hud-hi b').textContent!=='000000','HI-SCORE shows the largest saved plan');
  $('.j-score-table a').click();await delay(150);check(!!score(),'a hi-score row reopens its arena result');

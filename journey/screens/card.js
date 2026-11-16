@@ -43,7 +43,7 @@
             <summary><h2>FIELD MANUAL / ${escape(f.name.toUpperCase())}</h2></summary>
             <blockquote class="j-speech">“${escape(f.quote)}”</blockquote>
             <p>${escape(f.bio)}</p>
-            <p class="j-aside">${escape(f.joke)}</p>
+            <p class="j-aside">${escape(kit.pick(kit.pool(f, 'joke')))}</p>
             <div class="j-briefing"><h3>Pick me when…</h3><p>${escape(f.choose)}</p><h3>Not for…</h3><p>${kit.linkFighters(f.avoid)}</p>${kit.helpButton('assumptions', 'Read study assumptions')}</div>
             <p class="j-small"><b>WEAKNESS</b> ${escape(f.weakness)}</p>
             ${kit.action(kit.path('arena'), 'ENTER THE ARENA', true)}

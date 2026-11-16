@@ -48,6 +48,11 @@
   kit.extraKeys = m => [...(m.dropout === false ? [] : ['dropout']), ...(m.extraFields ?? [])];
   kit.coreDraft = (m, raw) => Object.fromEntries(Object.entries(raw).filter(([key]) => !kit.extraKeys(m).includes(key)));
 
+  // Rotating lines: one stable pick per fighter until the next successful calculation. The seed
+  // is never re-rolled on input events and is not saved.
+  kit.newSeed = () => Math.floor(Math.random() * 1e6);
+  kit.pool = (f, key) => [f[key], ...(f[key + 'More'] ?? [])].filter(Boolean);
+  kit.pick = (list, salt = 0) => list[(kit.state.seed + salt) % list.length];
   kit.save = () => {
     try {
       localStorage.setItem(storageKey, JSON.stringify({ activeId: kit.activeId, effects: settings.effects, drafts: Object.fromEntries(Object.entries(states).map(([id, s]) => [id, s.kept ?? s.draft])) }));
@@ -55,6 +60,7 @@
   };
   kit.choose = id => {
     kit.activeId = id; kit.method = methods[id]; kit.fighter = content.fighters[id]; kit.state = states[id];
+    if (!Number.isInteger(kit.state.seed)) kit.state.seed = kit.newSeed();
     kit.save();
   };
   kit.choose(activeId);

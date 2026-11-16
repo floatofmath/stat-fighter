@@ -59,14 +59,22 @@
   function bubbleText() {
     const f = kit.fighter, s = kit.state;
     if (arenaError) return { text: arenaError, tone: 'error' };
-    if (s.outcome && s.stale) return { text: 'You changed the rules. Rematch?', tone: 'stale' };
-    if (s.outcome) return { text: f.resultTitle, tone: 'win' };
+    if (s.outcome && s.stale) return { text: kit.pick(content.lines.stale), tone: 'stale' };
+    if (s.outcome) return { text: kit.pick(kit.pool(f, 'resultTitle')), tone: 'win' };
     const tip = advice()[0];
-    return tip ? { text: tip, tone: 'advice' } : { text: f.waiting, tone: '' };
+    return tip ? { text: tip, tone: 'advice' } : { text: kit.pick(kit.pool(f, 'waiting')), tone: '' };
+  }
+  // The Null's corner: a taunt while waiting, a grudging line after a fresh result, silent otherwise.
+  function nullText() {
+    const s = kit.state;
+    if (arenaError || (s.outcome && s.stale)) return '';
+    return s.outcome ? kit.pick(content.cpu.defeats, 2) : kit.pick(content.cpu.taunts, 1);
   }
   function refreshCorner() {
     const bubble = kit.root.querySelector('#j-bubble'), b = bubbleText();
     if (bubble) { bubble.textContent = b.text; bubble.dataset.tone = b.tone; }
+    const nullBubble = kit.root.querySelector('#j-null-bubble'), taunt = nullText();
+    if (nullBubble) { nullBubble.textContent = taunt; nullBubble.hidden = !taunt; }
     const box = kit.root.querySelector('#j-advice'), tips = advice();
     if (box) { box.hidden = !tips.length; box.querySelector('ul').innerHTML = tips.map(t => `<li>${escape(t)}</li>`).join(''); }
     const clock = kit.root.querySelector('#j-clock b');
@@ -95,14 +103,14 @@
 
   // ---- Result panel ----
   function waiting() {
-    const m = kit.method, f = kit.fighter;
-    return `<div class="j-waiting"><div class="j-versus" aria-hidden="true">VS</div><h2>THE NULL</h2><p>${f.waiting}</p><p>Set your parameters.<br>${m.waitingAction ?? 'Find the sample size.'}<br>Make a grand entrance.</p><div class="j-empty-score">N = ?</div><span class="j-kicker">AWAITING YOUR MOVE</span></div>`;
+    const m = kit.method;
+    return `<div class="j-waiting"><div class="j-versus" aria-hidden="true">VS</div><h2>THE NULL</h2><p>“${escape(kit.pick(content.cpu.taunts, 1))}”</p><p>Set your parameters.<br>${m.waitingAction ?? 'Find the sample size.'}<br>Make a grand entrance.</p><div class="j-empty-score">N = ?</div><span class="j-kicker">AWAITING YOUR MOVE</span></div>`;
   }
   function headline() {
     const { outcome, stale } = kit.state, m = kit.method, f = kit.fighter;
     if (!outcome) return waiting();
     const { parameters: p, result: r } = outcome;
-    return `<div class="j-result-head j-victory-head"><p class="j-kicker">${stale ? 'PARAMETERS CHANGED' : 'K.O. / CALCULATION COMPLETE'}</p><h2 class="j-slant">${stale ? 'REMATCH?' : 'YOU WIN'}</h2><p class="j-victory-line">${stale ? 'Ready for a rematch?' : escape(f.resultTitle)}</p></div>
+    return `<div class="j-result-head j-victory-head"><p class="j-kicker">${stale ? 'PARAMETERS CHANGED' : 'K.O. / CALCULATION COMPLETE'}</p><h2 class="j-slant">${stale ? 'REMATCH?' : 'YOU WIN'}</h2><p class="j-victory-line">${stale ? 'Ready for a rematch?' : escape(kit.pick(kit.pool(f, 'resultTitle')))}</p></div>
       ${stale ? '<p class="j-stale" role="status">Previous result — recalculate to update. Copy and share are paused.</p>' : ''}
       <div class="j-score"><span>${m.scoreLabel ?? 'REQUIRED SAMPLE SIZE'}</span><strong>${fmt.format(r.total)}</strong><span>${m.totalLabel}</span></div>
       <div class="j-group-counts">${m.allocations(r, p).map(([label, value]) => `<div>${escape(label.toUpperCase())}<strong>${fmt.format(value)}</strong></div>`).join('')}</div>
@@ -277,7 +285,7 @@
           <div class="j-ring-floor">
             <div class="j-corner you"><div class="j-bubble j-ring-bubble" id="j-bubble" data-tone="${b.tone}" aria-hidden="true">${escape(b.text)}</div>${kit.portrait(f, 'j-ring-portrait', { alt: `${f.name}, ready to fight.` })}</div>
             <div class="j-ko" aria-hidden="true"></div>
-            <div class="j-corner cpu">${kit.nullFigure('j-ring-null')}</div>
+            <div class="j-corner cpu"><div class="j-bubble j-ring-bubble cpu" id="j-null-bubble" aria-hidden="true" hidden></div>${kit.nullFigure('j-ring-null')}</div>
           </div>
           <div class="j-ring-caption">
             <div><p class="j-kicker">${escape(f.stage.toUpperCase())} / ${m.missionLabel ?? 'SAMPLE SIZE MISSION'}</p><h1 id="main-heading" tabindex="-1">${escape(f.name)}’s arena</h1><p>${escape(m.name)}</p></div>
@@ -391,7 +399,7 @@
       const s = kit.state, method = m();
       try {
         const parameters = method.normalize(s.draft), result = method.solve(stats, parameters, method.id);
-        s.outcome = { parameters, result, raw: kit.coreDraft(method, s.draft) }; s.stale = false; kit.routeError = '';
+        s.outcome = { parameters, result, raw: kit.coreDraft(method, s.draft) }; s.stale = false; kit.routeError = ''; s.seed = kit.newSeed();
         kit.replaceUrl(kit.urlFor(tableRaw(), true));
         kit.recordScore({ id: method.id, name: kit.fighter.name, total: result.total, unit: method.unit, power: result.power, at: new Date().toISOString().slice(0, 10), link: kit.urlFor(tableRaw(), true) });
         refreshResult(); kit.refreshHud(); kit.emit('calculationSucceeded');

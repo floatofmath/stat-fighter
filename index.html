@@ -50,6 +50,7 @@
   </main>
   <footer class="shell footer">
     <span>STAT FIGHTER ’89 <span class="footer-divider">/</span> SAMPLE SIZE CALCULATOR</span>
+    <span class="footer-disclaimer">FOR FUN. NO WARRANTY. NOT VALIDATED. NOT ENDORSED BY ANY REGULATOR.</span>
     <span id="app-status"><i aria-hidden="true"></i> CALCULATIONS STAY ON DEVICE</span>
   </footer>
 
@@ -58,7 +59,8 @@
     <h2 id="about-title">About Stat Fighter ’89</h2>
     <p>Plan sample sizes and power with arcade fighters: t-tests (pooled or Welch), ANOVA and ANCOVA, correlation and regression, rank tests, proportions, chi-square and non-inferiority for proportions, log-rank event counts with an optional enrolment step, vaccine efficacy from case counts, negative binomial event rates, Bonferroni families, non-inferiority and equivalence (TOST, including 2×2 crossover), and group sequential designs with interim looks. Calculations run on your device.</p>
     <p>Your hi-score table and drafts are kept in this browser only. Nothing leaves the device.</p>
-    <p>Stat Fighter ’89 is a planning aid. Results depend entirely on the assumptions you enter and on each method’s stated model. It comes with no warranty and is not a substitute for review by a qualified statistician, particularly for clinical, regulatory or bioequivalence studies.</p>
+    <h3>No warranty</h3>
+    <p>Stat Fighter ’89 is a hobby project made for fun. It comes with no warranty of any kind. It is not validated software, and no regulatory agency, ethics committee or professional body has reviewed or endorsed it. Results depend entirely on the assumptions you enter and on each method’s stated model, and they may be wrong. Do not base a study, a protocol or any decision on it without independent verification by a qualified statistician using validated software.</p>
     <div id="install-info">
       <h3>Install for offline play</h3>
       <p>On iPhone or iPad, open in Safari and choose <strong>Share → Add to Home Screen</strong>. On Android, use your browser’s <strong>Install app</strong> or <strong>Add to Home screen</strong> menu.</p>
@@ -79,6 +81,11 @@
     <label><input type="checkbox"> Animation effects</label>
     <p class="j-small">Turns the fight sequence, signal pulses and screen transitions on or off. Results always appear at once, and your system’s reduced-motion setting is always respected. Any key or tap skips a fight. Sound will join the arcade in a later chapter.</p>
     <form method="dialog"><button class="j-button">BACK TO THE GAME ↵</button></form>
+  </dialog>
+  <dialog id="journey-warning" class="j-dialog" aria-labelledby="journey-warning-title">
+    <p class="j-kicker">STAT FIGHTER ’89 / READ BEFORE PLAYING</p><h2 id="journey-warning-title">WARNING</h2>
+    <p>Stat Fighter ’89 is a hobby project made for fun. It comes with no warranty of any kind. It is not validated software, and no regulatory agency, ethics committee or professional body has reviewed or endorsed it. Results depend entirely on the assumptions you enter and on each method’s stated model, and they may be wrong. Do not base a study, a protocol or any decision on it without independent verification by a qualified statistician using validated software.</p>
+    <form method="dialog"><button class="j-button">I UNDERSTAND. LET ME FIGHT ↵</button></form>
   </dialog>
 </body>
 </html>

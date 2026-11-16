@@ -18,9 +18,12 @@ const tiles=()=>all('[data-tile]').map(t=>t.dataset.tile);
 const setEffects=async on=>{await load('#title');$('[data-options]').click();const t=$('#journey-options input');t.checked=on;t.dispatchEvent(new (win().Event)('change',{bubbles:true}));$('#journey-options').close();};
 document.querySelector('#run').onclick=async()=>{
  document.querySelector('#run').disabled=true;log.textContent='';log.className='';count=0;
+ const ackKey='stat-fighter:ack:v1',savedAck=localStorage.getItem(ackKey);
  const keys=['stat-fighter:journey:v2','stat-fighter:journey:v1','stat-fighter:scores:v1'],saved=Object.fromEntries(keys.map(k=>[k,localStorage.getItem(k)]));
  try{
- keys.forEach(k=>localStorage.removeItem(k));await setEffects(false);
+ keys.forEach(k=>localStorage.removeItem(k));localStorage.removeItem(ackKey);await load('#title');check($('#journey-warning').open,'first-run warning appears when not yet acknowledged');$('#journey-warning').close();check(localStorage.getItem(ackKey)==='1','closing the warning remembers it');await load('#title');check(!$('#journey-warning').open,'acknowledged warning does not return');
+ localStorage.removeItem(ackKey);await load('#arena?v=1&test=two-sample&run=1');check(!$('#journey-warning').open&&$('.j-disclaimer')?.textContent.includes('NO WARRANTY'),'shared result links skip the warning and show the short notice');localStorage.setItem(ackKey,'1');
+ await setEffects(false);
  // ---- Title, world map and second-click entry ----
  await load('#title');check(!!$('.j-menu'),'title renders');check($('.j-hud').textContent.includes('INSERT COIN'),'HUD shows 1UP, HI-SCORE and INSERT COIN');
  $('[data-coin]').click();check($('#about').open,'INSERT COIN opens About');$('#about').close();
@@ -132,6 +135,6 @@ document.querySelector('#run').onclick=async()=>{
  }
  log.textContent+='DONE '+count+' checks passed.\n';log.className='pass';document.querySelector('#summary').textContent='DONE: '+count+' checks passed.';
  }catch(e){log.textContent+='FAIL '+e.message+'\n';log.className='fail';document.querySelector('#summary').textContent='FAIL after '+count+' checks: '+e.message+'; last pass: '+log.textContent.trim().split('\n').slice(-3).join(' | ')}
- finally{for(const k of keys){if(saved[k]===null)localStorage.removeItem(k);else localStorage.setItem(k,saved[k]);}document.querySelector('#run').disabled=false}
+ finally{if(savedAck===null)localStorage.removeItem('stat-fighter:ack:v1');else localStorage.setItem('stat-fighter:ack:v1',savedAck);for(const k of keys){if(saved[k]===null)localStorage.removeItem(k);else localStorage.setItem(k,saved[k]);}document.querySelector('#run').disabled=false}
 };
 </script></html>

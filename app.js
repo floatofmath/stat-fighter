@@ -26,6 +26,14 @@
   });
 
   render();
+  // First-run warning. Shared result links (run=1) open straight on the result, which carries the short notice.
+  const warning = document.querySelector('#journey-warning'), ackKey = 'stat-fighter:ack:v1';
+  let acknowledged = false;
+  try { acknowledged = localStorage.getItem(ackKey) === '1'; } catch { /* storage blocked: show it every visit */ }
+  if (!acknowledged && !/[?&]run=1(&|$)/.test(location.hash)) {
+    warning.addEventListener('close', () => { try { localStorage.setItem(ackKey, '1'); } catch { /* not remembered */ } }, { once: true });
+    warning.showModal();
+  }
   if (location.protocol === 'file:') {
     document.querySelector('#install-info').hidden = true;
   } else if ('serviceWorker' in navigator) {

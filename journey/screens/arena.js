@@ -109,6 +109,7 @@
       <div class="j-power-label"><span>${m.powerLabel ?? 'ACHIEVED POWER'}</span><b>${pct(r.power)}</b></div>
       <meter min="0" max="1" value="${r.power}" aria-label="Achieved power">${pct(r.power)}</meter>
       <p class="j-small">Target ${pct(p.power)} · Complete, analyzable ${m.unit}.</p>
+      <p class="j-small j-disclaimer">${escape(content.disclaimer.short)}</p>
       ${m.calculationNote ? `<p class="j-small j-calculation-note">${escape(m.calculationNote)}</p>` : ''}`;
   }
 
@@ -252,7 +253,7 @@
       ...(m.dropout === false || !Number(s.draft.dropout) ? [] : [dropoutLine()]),
       ...m.receipt(s.outcome.raw, p, r).map(([label, value]) => `${label}: ${value}`),
       ...tables().flatMap(t => [t.title, ...(t.columns ? [t.columns.join(' | ')] : []), ...t.rows.map(row => row.join(t.columns ? ' | ' : ': ')), ...(t.note ? [t.note] : [])]),
-      m.assumptions, m.allocationRule, `Engine ${stats.version ?? '1'} / method ${m.version}; objective: sample size.`,
+      m.assumptions, m.allocationRule, `Engine ${stats.version ?? '1'} / method ${m.version}; objective: sample size.`, content.disclaimer.copy,
     ].join('\n');
     const status = kit.root.querySelector('#j-copy-status');
     try { await navigator.clipboard.writeText(text); status.textContent = `${kind === 'link' ? 'Link' : 'Result'} copied.`; }

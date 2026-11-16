@@ -328,3 +328,9 @@ span.j-thumb.j-silhouette i{width:80%;height:86%}
 .j-step:first-child{border-right:0}.j-step:last-child{border-left:0}
 .j-step:hover{color:#edce79;border-color:#ad8a44}
 .j-step:active{background:#1d3240;color:#fff3a6}
+
+/* ---- Disclaimer: one gold line, small arcade type ---- */
+.j-disclaimer{font:7px/1.9 var(--arcade);color:var(--j-gold);letter-spacing:.02em}
+.footer-disclaimer{font:7px/1.9 var(--arcade);color:var(--j-gold);letter-spacing:0}
+#journey-warning p:not(.j-kicker){font-size:14px;color:#c9d0d0}
+#journey-warning h2{color:var(--j-rose)}

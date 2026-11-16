@@ -89,7 +89,7 @@ To preview the deployable build locally, run `scripts/build-site.sh _site` and s
 
 ## Disclaimer
 
-Stat Fighter ’89 is a planning aid. Results depend entirely on the assumptions you enter and on each method’s stated model. It comes with no warranty and is not a substitute for review by a qualified statistician, particularly for clinical, regulatory or bioequivalence studies.
+Stat Fighter ’89 is a hobby project made for fun. It comes with no warranty of any kind. It is not validated software, and no regulatory agency, ethics committee or professional body has reviewed or endorsed it. Results depend entirely on the assumptions you enter and on each method’s stated model, and they may be wrong. Do not base a study, a protocol or any decision on it without independent verification by a qualified statistician using validated software.
 
 ## Licence
 

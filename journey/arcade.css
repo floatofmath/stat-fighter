@@ -368,3 +368,8 @@ span.j-thumb.j-silhouette i{width:80%;height:86%}
   .j-convert-panel{padding:14px}
   .j-convert-table td{font-size:14px}
 }
+
+/* ---- Protocol text and R code ---- */
+.j-protocol pre,.j-rcode pre{white-space:pre-wrap;font:13px/1.7 ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;color:#d8dccf;background:#070c12;border:1px solid #293f4a;padding:12px;margin:10px 0;max-height:420px;overflow:auto}
+.j-protocol pre:focus-visible,.j-rcode pre:focus-visible{outline:2px solid #ecd270;outline-offset:2px}
+.j-protocol .j-button,.j-rcode .j-button{font-size:7px;justify-content:center;width:100%}

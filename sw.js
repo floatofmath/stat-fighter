@@ -5,7 +5,7 @@ const cacheName = `${cachePrefix}${version}`;
 // precached; once they are, every assets/web/<file> request is answered with assets/<file>.
 const webTier = new URL('assets/web/', self.registration.scope);
 const files = [
-  './journey/methods.js', './journey/convert.js', './journey/content.js', './journey/core.js', './journey/journey.js', './journey/journey.css', './journey/arcade.css',
+  './journey/methods.js', './journey/convert.js', './journey/protocol.js', './journey/content.js', './journey/core.js', './journey/journey.js', './journey/journey.css', './journey/arcade.css',
   './journey/screens/title.js', './journey/screens/world.js', './journey/screens/select.js', './journey/screens/card.js', './journey/screens/arena.js', './journey/screens/scores.js', './journey/screens/convert.js',
   './assets/fonts/PressStart2P-Regular.ttf', './assets/maverick-arcade-v2.webp', './assets/earth-world-v1.webp', './assets/sunset-airfield-v1.webp',
   './assets/mirror-arcade-v2.webp', './assets/mirror-stage-v1.webp', './assets/iwan-arcade-v1.webp', './assets/iwan-stage-v1.webp', './assets/nova-arcade-v1.webp', './assets/nova-stage-v1.webp',

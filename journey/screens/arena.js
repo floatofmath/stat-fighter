@@ -5,7 +5,7 @@
 {
   const kit = globalThis.StatFighter.kit;
   const { content, stats, escape, fmt, pct } = kit;
-  const convert = globalThis.StatFighter.convert;
+  const { convert, protocol } = globalThis.StatFighter;
   let arenaError = '';
   let fightTimers = [];
   let finishFight = null;
@@ -124,12 +124,7 @@
   }
 
   // Dropout allowance: a separate line, so the verified number is never altered.
-  function enrolment(d) {
-    const { parameters: p, result: r } = kit.state.outcome, up = v => Math.ceil(v / (1 - d) - 1e-9);
-    if (r.n2) { const a = up(r.n), b = up(r.n2); return { total: a + b, detail: `${fmt.format(a)} + ${fmt.format(b)}` }; }
-    if (p.groups) { const a = up(r.n); return { total: a * p.groups, detail: `${fmt.format(a)} × ${p.groups} groups` }; }
-    return { total: up(r.total), detail: '' };
-  }
+  const enrolment = d => protocol.enrolment(kit.state.outcome.parameters, kit.state.outcome.result, d);
   function dropoutLine() {
     const raw = kit.state.draft.dropout, d = Number(raw);
     if (raw === undefined || !String(raw).trim() || d === 0) return 'No dropout allowance. Enter a proportion to see how many to enrol.';
@@ -149,6 +144,12 @@
     if (!kit.state.outcome) return '';
     return `${kit.method.dropout === false ? '' : `<p class="j-dropout-out">${escape(dropoutLine())}</p>`}${tables().map(tableHtml).join('')}`;
   }
+  // Protocol-ready paragraph: the same numbers as the receipt, the tables and the enrol line.
+  const reproducible = () => ['exact', 'close'].includes(globalThis.StatFighter.rcode?.check?.(kit.method.id));
+  function protocolText() {
+    const { parameters: p, result: r } = kit.state.outcome, m = kit.method;
+    return protocol.text(m, tableRaw(), p, r, { dropout: m.dropout === false ? 0 : kit.state.draft.dropout, version: content.version, engine: stats.version ?? '1', tables: tables(), disclaimer: content.disclaimer.copy, reproducible: reproducible() });
+  }
   function afterResult() {
     const { outcome, stale } = kit.state, m = kit.method;
     if (!outcome) return '';
@@ -161,6 +162,7 @@
       </section>
       <section class="j-curve-box" aria-labelledby="j-curve-title"><h3 id="j-curve-title">POWER CURVE / WHAT IF?</h3><div id="j-curve"><p class="j-small">Charging the power curve…</p></div></section>
       <details class="j-receipt"><summary>View the calculation receipt</summary><dl><dt>Method</dt><dd>${m.name}</dd>${m.receipt(raw, p, r).map(([label, value]) => `<dt>${escape(label)}</dt><dd>${escape(value)}</dd>`).join('')}<dt>Engine / method</dt><dd>${stats.version ?? '1'} / ${m.version}</dd></dl><p>${m.allocationRule}</p></details>
+      <details class="j-receipt j-protocol"><summary>Protocol text · sample size section</summary><p class="j-small">A draft. Replace everything in [brackets] and check every number against your own assumptions. ${escape(content.disclaimer.short)}</p><pre id="j-protocol-text" tabindex="0">${escape(protocolText())}</pre><button class="j-button" data-copy="protocol" ${stale ? 'disabled' : ''}>COPY PROTOCOL TEXT</button></details>
       <button class="j-edit-inputs j-text-link" data-edit-inputs type="button">↑ Edit parameters / Rematch</button>
       <div class="j-result-actions"><button class="j-button" data-copy="result" ${stale ? 'disabled' : ''}>COPY RESULT</button><button class="j-button" data-copy="link" ${stale ? 'disabled' : ''}>COPY LINK</button></div>
       <p id="j-copy-status" class="j-small" role="status"></p><textarea id="j-manual-copy" aria-label="Result or link to copy" readonly hidden></textarea>`;
@@ -257,7 +259,7 @@
     const s = kit.state, m = kit.method;
     if (!s.outcome || s.stale) return;
     const { result: r, parameters: p } = s.outcome, raw = tableRaw();
-    const text = kind === 'link' ? location.href.split('#')[0] + kit.urlFor(raw, true) : [
+    const text = kind === 'link' ? location.href.split('#')[0] + kit.urlFor(raw, true) : kind === 'protocol' ? protocolText() : [
       `STAT FIGHTER ’89 — ${m.name}`, `Required: ${r.total} ${m.unit}`,
       ...m.allocations(r, p).map(([label, value]) => `${label}: ${value}`), `Achieved power: ${pct(r.power)}; target: ${pct(p.power)}`,
       ...(m.dropout === false || !Number(s.draft.dropout) ? [] : [dropoutLine()]),
@@ -266,7 +268,7 @@
       m.assumptions, m.allocationRule, `Engine ${stats.version ?? '1'} / method ${m.version}; objective: sample size.`, content.disclaimer.copy,
     ].join('\n');
     const status = kit.root.querySelector('#j-copy-status');
-    try { await navigator.clipboard.writeText(text); status.textContent = `${kind === 'link' ? 'Link' : 'Result'} copied.`; }
+    try { await navigator.clipboard.writeText(text); status.textContent = `${{ link: 'Link', protocol: 'Protocol text' }[kind] ?? 'Result'} copied.`; }
     catch { const area = kit.root.querySelector('#j-manual-copy'); area.hidden = false; area.value = text; area.focus(); area.select(); status.textContent = 'Select and copy the text below.'; }
   }
 
@@ -351,6 +353,8 @@
     kit.replaceUrl(kit.urlFor(s.outcome && !s.stale ? tableRaw() : s.draft, Boolean(s.outcome && !s.stale)));
     const out = kit.root.querySelector('#j-extras-out');
     if (out) out.innerHTML = extrasOut();
+    const text = kit.root.querySelector('#j-protocol-text');
+    if (text && s.outcome) text.textContent = protocolText();
   }
 
   function wireForm() {

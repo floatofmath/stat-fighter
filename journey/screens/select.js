@@ -47,7 +47,8 @@
       const sections = content.regions.map(region => `<section class="j-select-district"><h2><span>${region.number}</span> ${escape(region.name)}</h2>${grid(kit.playable(region.id), `${region.name} fighters`)}</section>`).join('');
       return kit.cabinet(`${kit.heading('QUICK SELECT / WORLD TOUR', 'Choose your fighter', 'Every district on one screen. Tap a fighter to preview, tap again to pick. Each fighter keeps a separate draft.')}
         ${kit.routeError ? `<p class="j-error">${escape(kit.routeError)}</p>` : ''}
-        ${layout(sections)}`, `${kit.playable().length} FIGHTERS / CHOOSE YOUR METHOD`);
+        ${layout(sections)}
+        <p class="j-select-foot"><a class="j-text-link" href="#match">Not sure? Ask the Matchmaker →</a></p>`, `${kit.playable().length} FIGHTERS / CHOOSE YOUR METHOD`);
     },
   };
 

@@ -49,3 +49,33 @@ test('the disclaimer has short, full and copy forms, and index.html repeats them
   assert.ok(page.includes(full), 'About and warning full text');
   assert.ok(load('README.md').includes(full), 'README disclaimer');
 });
+
+test('Matchmaker rules point at real fighters and reach all twenty-two', async () => {
+  const { createRequire } = await import('node:module');
+  const methods = createRequire(import.meta.url)('../journey/methods.js');
+  const mm = content.matchmaker;
+  for (const rule of mm.rules) assert.ok(methods[rule.fighter] && content.fighters[rule.fighter], rule.fighter);
+  const reached = new Set();
+  const walk = (answers, depth = 0) => {
+    const step = mm.step(answers);
+    assert.ok(depth <= 3, JSON.stringify(answers));
+    if (step.fighter) { reached.add(step.fighter); return; }
+    if (step.none) return;
+    assert.ok(step.options.length > 1 || step.ask !== 'design', `${step.ask} after ${JSON.stringify(answers)}`);
+    for (const [id] of step.options) walk({ ...answers, [step.ask]: id }, depth + 1);
+  };
+  walk({});
+  assert.deepEqual([...reached].sort(), Object.keys(methods).sort());
+});
+
+test('Matchmaker: worked paths, skips and dead ends', () => {
+  const mm = content.matchmaker;
+  assert.equal(mm.step({ goal: 'difference', outcome: 'continuous', design: 'two-groups' }).fighter, 'two-sample');
+  assert.equal(mm.step({ goal: 'many' }).fighter, 'bonferroni');
+  assert.equal(mm.step({ goal: 'early' }).ask, 'design');
+  assert.equal(mm.step({ goal: 'difference', outcome: 'time' }).fighter, 'log-rank');
+  assert.equal(mm.step({ goal: 'difference', outcome: 'binary' }).ask, 'design');
+  assert.ok(mm.step({ goal: 'same', outcome: 'binary' }).none);
+  assert.equal(mm.step({ goal: 'nonsense' }).ask, 'goal');
+  assert.equal(mm.step({ goal: 'difference', outcome: 'continuous', design: 'bogus' }).ask, 'design');
+});

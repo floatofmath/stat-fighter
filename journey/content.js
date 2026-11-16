@@ -252,6 +252,65 @@
   // Every stale line must contain “Rematch” (browser QA checks it).
   const lines = { stale: ["You changed the rules. Rematch?","New numbers, old result. Rematch?","That’s a different fight now. Rematch?"], taglines: ["Big hair. Small p-values.","Insert coin. Reject null.","No guts. Just good assumptions.","Winners prespecify."] };
 
+  // Matchmaker: three questions, first matching rule wins. step(answers) is pure: it returns the next
+  // question with its options, a fighter id, or { none: true } when no fighter covers the answers.
+  const matchmaker = {
+    goals: [
+      ['difference', 'A difference', 'Groups, conditions or a benchmark differ.'],
+      ['not-worse', 'Not worse', 'A new option is no worse than the standard by more than a margin (non-inferiority).'],
+      ['same', 'The same', 'Two options are equivalent within limits (equivalence, bioequivalence).'],
+      ['early', 'Early stopping', 'Interim looks that may stop the trial early.'],
+      ['many', 'Many comparisons', 'Several tests sharing one alpha.'],
+      ['relationship', 'A relationship', 'How variables move together or predict an outcome.'],
+    ],
+    outcomes: [
+      ['continuous', 'A measurement', 'Blood pressure, a score, a concentration.'],
+      ['binary', 'Yes or no', 'Responder, cured, event happened.'],
+      ['ordinal', 'Ranks or badly skewed', 'Ordinal scales, or data far from normal.'],
+      ['time', 'Time to an event', 'Survival, time to relapse.'],
+      ['counts', 'Repeated events per person', 'Exacerbations, seizures, falls.'],
+      ['cases', 'Vaccine cases', 'Cases of disease in a vaccine trial.'],
+    ],
+    noOutcome: ['early', 'many', 'relationship'],
+    rules: [
+      { goal: 'relationship', design: 'two-variables', label: 'Two variables, one correlation', fighter: 'correlation' },
+      { goal: 'relationship', design: 'predictors', label: 'An outcome and several predictors', fighter: 'regression' },
+      { goal: 'many', fighter: 'bonferroni' },
+      { goal: 'early', design: 'efficacy', label: 'Stop early for efficacy only', fighter: 'gsd-efficacy' },
+      { goal: 'early', design: 'futility', label: 'Stop early for efficacy or futility', fighter: 'gsd-futility' },
+      { goal: 'same', outcome: 'continuous', design: 'parallel-means', label: 'Parallel groups, difference in means', fighter: 'tost' },
+      { goal: 'same', outcome: 'continuous', design: 'parallel-ratio', label: 'Parallel groups, ratio of geometric means (PK)', fighter: 'tost-lognormal' },
+      { goal: 'same', outcome: 'continuous', design: 'crossover', label: 'Crossover: everyone gets both', fighter: 'tost-crossover' },
+      { goal: 'not-worse', outcome: 'continuous', fighter: 'non-inferiority' },
+      { goal: 'not-worse', outcome: 'binary', fighter: 'ni-proportions' },
+      { goal: 'not-worse', outcome: 'counts', fighter: 'negative-binomial', tip: 'Set the null rate ratio above 1 in the arena.' },
+      { goal: 'difference', outcome: 'continuous', design: 'two-groups', label: 'Two independent groups', fighter: 'two-sample' },
+      { goal: 'difference', outcome: 'continuous', design: 'baseline', label: 'Two groups, adjusting for a baseline', fighter: 'ancova' },
+      { goal: 'difference', outcome: 'continuous', design: 'paired', label: 'Before and after, or matched pairs', fighter: 'paired' },
+      { goal: 'difference', outcome: 'continuous', design: 'one-group', label: 'One group against a fixed value', fighter: 'one-sample' },
+      { goal: 'difference', outcome: 'continuous', design: 'many-groups', label: 'Three or more groups', fighter: 'anova' },
+      { goal: 'difference', outcome: 'binary', design: 'two-groups', label: 'Two groups', fighter: 'proportions' },
+      { goal: 'difference', outcome: 'binary', design: 'table', label: 'A larger table', fighter: 'chi-square' },
+      { goal: 'difference', outcome: 'ordinal', design: 'two-groups', label: 'Two independent groups', fighter: 'mann-whitney' },
+      { goal: 'difference', outcome: 'ordinal', design: 'paired', label: 'Paired measurements', fighter: 'signed-rank' },
+      { goal: 'difference', outcome: 'time', fighter: 'log-rank' },
+      { goal: 'difference', outcome: 'counts', fighter: 'negative-binomial' },
+      { goal: 'difference', outcome: 'cases', fighter: 'vaccine-efficacy' },
+    ],
+    step(answers = {}) {
+      const { goal, outcome, design } = answers;
+      if (!this.goals.some(([id]) => id === goal)) return { ask: 'goal', options: this.goals };
+      const needsOutcome = !this.noOutcome.includes(goal);
+      if (needsOutcome && !this.outcomes.some(([id]) => id === outcome)) return { ask: 'outcome', options: this.outcomes };
+      const candidates = this.rules.filter(r => r.goal === goal && (!needsOutcome || r.outcome === outcome));
+      if (!candidates.length) return { none: true };
+      if (candidates.length === 1 && !candidates[0].design) return { fighter: candidates[0].fighter, rule: candidates[0] };
+      const chosen = candidates.find(r => r.design === design);
+      if (chosen) return { fighter: chosen.fighter, rule: chosen };
+      return { ask: 'design', options: candidates.map(r => [r.design, r.label, '']) };
+    },
+  };
+
   // One source for the disclaimer. index.html repeats short and full as static text (keep them equal).
   const disclaimer = {
     short: 'FOR FUN. NO WARRANTY. NOT VALIDATED. NOT ENDORSED BY ANY REGULATOR.',
@@ -260,5 +319,5 @@
   };
   // App version; tests/content.test.mjs keeps it equal to package.json.
   const version = '1.1.0';
-  globalThis.StatFighter.content = { version, worldMap, regions, regionAliases, fighters, cpu, help, disclaimer, lines };
+  globalThis.StatFighter.content = { version, worldMap, regions, regionAliases, fighters, cpu, help, disclaimer, lines, matchmaker };
 }

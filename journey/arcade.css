@@ -39,7 +39,7 @@ span.j-thumb.j-silhouette i{width:80%;height:86%}
 /* Speech bubbles. */
 .j-bubble{position:relative;background:#0b0f16;border:3px solid var(--accent);color:#f3ead2;font:10px/1.8 var(--arcade);padding:12px 14px;box-shadow:4px 4px 0 #000;max-width:30ch}
 .j-bubble b{color:var(--accent);font-weight:normal}
-.j-bubble:after{content:'';position:absolute;left:24px;bottom:-12px;width:14px;height:14px;background:#0b0f16;border-right:3px solid var(--accent);border-bottom:3px solid var(--accent);transform:rotate(45deg) skew(8deg,8deg)}
+.j-bubble:after{content:'';position:absolute;left:var(--tail-x,24px);bottom:-12px;width:14px;height:14px;background:#0b0f16;border-right:3px solid var(--accent);border-bottom:3px solid var(--accent);transform:rotate(45deg) skew(8deg,8deg)}
 .j-bubble[data-tone=error]{border-color:#e98295;color:#ffd6de}
 .j-bubble[data-tone=error]:after{border-color:#e98295}
 .j-bubble[data-tone=advice]{border-color:var(--j-gold)}
@@ -92,8 +92,7 @@ span.j-thumb.j-silhouette i{width:80%;height:86%}
 .j-card-test{font-size:12px;color:#a7b6ba;margin:0 0 18px}
 .j-card-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(290px,1fr);gap:28px;align-items:start}
 .j-card-fighter{position:relative;display:grid;gap:12px}
-.j-card-bubble{justify-self:end;margin:0 0 6px;font-size:clamp(10px,1.2vw,13px)}
-.j-card-bubble:after{left:auto;right:36px}
+.j-card-bubble{justify-self:stretch;max-width:none;margin:0 0 6px;font-size:clamp(10px,1.2vw,13px);--portrait-w:min(100%,373px);--tail-x:calc(var(--portrait-w) * var(--head-x,.45) - 10px)}
 .j-card-portrait{aspect-ratio:2/3;max-height:560px;border:2px solid var(--accent);box-shadow:6px 6px 0 #000}
 .j-card-portrait img{object-position:center top}
 .j-nameplate{background:#05070bee;border-left:6px solid var(--accent);padding:10px 14px}
@@ -161,7 +160,7 @@ span.j-thumb.j-silhouette i{width:80%;height:86%}
 .j-ring-portrait img{object-position:center top}
 .j-ring-null{height:270px;border:2px solid #4a2430;border-bottom:0}
 .j-ring-bubble{position:absolute;left:calc(min(200px,45%) + 14px);top:0;z-index:2}
-.j-ring-bubble:after{left:-11px;bottom:auto;top:16px;transform:rotate(135deg)}
+.j-ring-bubble:after{left:-11px;bottom:auto;top:34px;transform:rotate(135deg)}
 .j-ko{position:absolute;inset:0;z-index:5;display:grid;place-items:center;pointer-events:none;text-align:center;font:clamp(30px,6vw,72px)/1.2 var(--arcade);color:#fff3c4;text-shadow:4px 4px 0 #7c2b3c,-2px -2px 0 #05070b}
 .j-ko:empty{display:none}
 .j-ko b{display:block;font-size:.55em;color:var(--j-gold);font-weight:normal}
@@ -265,7 +264,7 @@ span.j-thumb.j-silhouette i{width:80%;height:86%}
   .j-card-stage{padding:16px}
   .j-card-body{grid-template-columns:1fr}
   .j-card-fighter{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:end}
-  .j-card-bubble{grid-column:1/-1;justify-self:stretch;max-width:none}
+  .j-card-bubble{grid-column:1/-1;justify-self:stretch;max-width:none;--portrait-w:min((100% - 12px) / 2,200px)}
   .j-card-portrait{max-height:300px}
   .j-nameplate{align-self:end}
   .j-ring{min-height:0}
@@ -275,8 +274,8 @@ span.j-thumb.j-silhouette i{width:80%;height:86%}
   .j-ring-floor{padding:4px 14px 0}
   .j-ring-portrait{height:190px}
   .j-ring-null{height:170px}
-  .j-ring-bubble{left:0;right:auto;top:-4px;position:relative;margin-bottom:12px;max-width:min(280px,100%);font-size:8px;padding:8px 10px}
-  .j-ring-bubble:after{left:24px;top:auto;bottom:-12px;transform:rotate(45deg) skew(8deg,8deg)}
+  .j-ring-bubble{left:0;right:auto;top:-4px;position:relative;margin-bottom:12px;max-width:min(280px,100%);font-size:8px;padding:8px 10px;--tail-x:46px}
+  .j-ring-bubble:after{left:var(--tail-x,24px);top:auto;bottom:-12px;transform:rotate(45deg) skew(8deg,8deg)}
   .j-corner.you{grid-column:1}
   .j-ring-caption{padding:12px 14px}
   .j-scores{margin:0 14px 20px;padding:14px}
@@ -300,6 +299,7 @@ span.j-thumb.j-silhouette i{width:80%;height:86%}
   .j-life small{font-size:6px}
   .j-life-bar{height:14px}
   .j-ring-portrait{height:160px}
+  .j-ring-bubble{--tail-x:38px}
   .j-ring-null{height:140px}
   .j-ko{font-size:28px}
   .j-ko.move{font-size:14px}
@@ -312,6 +312,7 @@ span.j-thumb.j-silhouette i{width:80%;height:86%}
   .j-preview{grid-template-columns:84px minmax(0,1fr)}
   .j-preview-actions{grid-template-columns:1fr}
   .j-card-fighter{grid-template-columns:1fr}
+  .j-card-bubble{--portrait-w:min(100%,226px)}
   .j-card-portrait{max-height:340px;width:100%}
   .j-fightbar{grid-template-columns:1fr;gap:6px}
   .j-life.cpu{text-align:left}

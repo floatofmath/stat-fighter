@@ -396,3 +396,16 @@ span.j-thumb.j-silhouette i{width:80%;height:86%}
   .j-match{padding:14px}
   .j-match-option{min-height:60px;font-size:8px}
 }
+
+/* ---- Attract mode (title screen demo) ---- */
+.j-attract{position:absolute;inset:0;z-index:2;background:#070b13}
+.j-attract[hidden]{display:none}
+.j-attract .j-attract-portrait{position:absolute;inset:0;border:2px solid var(--accent)}
+.j-attract .j-attract-portrait img{object-position:center top}
+.j-attract-caption{position:absolute;left:0;right:0;bottom:0;display:grid;gap:6px;padding:14px 16px;background:linear-gradient(0deg,#05070bf2 70%,#05070b00)}
+.j-attract-caption b{font:12px/1.6 var(--arcade);color:var(--accent);font-weight:normal}
+.j-attract-caption .j-slant{font:clamp(12px,1.6vw,18px)/1.4 var(--arcade)}
+.j-attract-caption q{font-size:13px;line-height:1.6;color:#d6cda9}
+.j-attract-demo{position:absolute;top:10px;right:10px;font:9px var(--arcade);color:#ff5d73;background:#05070bdd;padding:5px 7px;border:1px solid #ff5d73;animation:demo-blink 1s steps(2,start) infinite}
+@keyframes demo-blink{50%{visibility:hidden}}
+.journey-active.no-effects .j-attract-demo{animation:none}
